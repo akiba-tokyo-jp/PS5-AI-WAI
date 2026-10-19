@@ -26,8 +26,6 @@ BGRAの描画とVideoOut形式を揃え、赤紫になる表示色を修正し�
 
 この表は2026-10-18の機能検証各1枚です。OpenPose遅延の一部はログ同期で説明できましたが、GPU演算・内部待ちの分離と初回の断片化対策は残っています。最新の同条件比較は上の工程別記録を参照してください。
 
-![PS5で生成したCanny1024](docs/images/controlnet-canny1024.png)
-
 ![PS5で生成したOpenPose1024](docs/images/controlnet-openpose1024.png)
 
 [Canny成功動画12秒](docs/media/controlnet-canny1024.mp4)・[OpenPose成功動画12秒](docs/media/controlnet-openpose1024.mp4)。実Windows操作録画の完了部分で、12秒が生成時間という意味ではありません。
