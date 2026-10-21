@@ -1,130 +1,130 @@
-# WAI画像生成の最適化検証（2026-10-19）
+# WAI generation optimization verification (2026-10-19)
 
-1〜4の改善と実機検証を完了し、V16を採用した。256×256の初回生成は基準124.567秒に対し最終構成115.815秒で、今回の実測では約7.0%短縮。1024×1024のモデル未読込からの初回は161.397秒で、旧構成184.026秒から約12.3%短縮した。同じ入力から得たPNGは全バイト一致した。モデル読み込み済みの1024は、サイズ変更後132.952秒、同条件の次の1枚117.600秒だった。
+Completed improvements 1–4 and console verification; adopted V16. First 256×256 decreased from 124.567 to 115.815 seconds, about 7.0% in these observations. Unloaded-model 1024×1024 decreased 184.026→161.397 seconds, about 12.3%. Same-input PNGs matched byte for byte. Loaded 1024 took 132.952 seconds after a size change and 117.600 for the next 1 matched request.
 
-この記録は保存済みの成功13件（256×256を9件、旧・新の初回を含む1024×1024を4件）を集計したもの。文書作成のための実機操作・追加生成は行っていない。値と照合結果は[抽出した計測記録](optimization-20261019-evidence.json)にまとめた。原記録のSHA256も含み、認証情報・個人の保存先・プロンプト本文・ジョブIDは含めていない。
+Aggregates 13 saved successes: 9 at 256×256 and 4 at 1024×1024, including old/new first runs. No console actions or additional generations for this write-up. [Extracted records](optimization-20261019-evidence.json) retain source SHA 256 without credentials, personal paths, prompt text or job IDs.
 
-## 比較条件
+## Comparison conditions
 
-WAI-Illustrious-SDXL v17.0、20 steps、CFG 5、Euler ancestral（`euler_a`）、seed 20261018。漫画LoRAの強度1、monochrome無効、OpenPoseの強度1。段階比較は256×256、サイズ変更確認は1024×1024。同一のprompt・negative promptを使用し、各サイズの制御画像は対応する基準と一致。画像サイズとアップロードごとに変わる制御画像IDを除き、保存済みリクエストの生成条件は一致している。
+WAI-Illustrious-SDXL v17.0,20 steps, CFG 5, Euler ancestral (`euler_a`), seed 20261018, manga LoRA 1, monochrome disabled, OpenPose 1. Staged comparisons use 256×256; size-switch tests 1024×1024. Same prompt/negative and size-matched reference control images. Saved conditions match except dimensions and per-upload control-image IDs.
 
-CLIPはPS5 CPU、UNet・ControlNet・TAESDはPS5 Vulkanで実行。Windowsでモデル推論は行っていない。初期比較のDirect予約は9GiB、V15・V16の検証は9422MiB（約9.201GiB）。各行は1枚の実測であり、反復平均ではない。
+PS5 CPU CLIP; PS5 Vulkan UNet/ControlNet/TAESD. No Windows inference. Initial comparisons reserved 9GiB Direct; V15/V16 used 9422MiB (about 9.201GiB). Each row is 1 observation, not a repeated mean.
 
-「初回」は`model_loaded_before=false`の記録で、モデル読み込みを含む。「読み込み済み」は`true`であり、conditioningと重みのキャッシュがどこまで利用されたかは各測定で区別する。
+First-run records have `model_loaded_before=false` and include loading. Loaded records use `true`; conditioning/weight-cache use is distinguished per measurement.
 
-## 1〜4の256×256比較
+## 256×256 comparison of improvements 1–4
 
-| 段階 | 状態 | PS5内生成時間 | CLIP | UNet graph call | ControlNet | ControlNet実行回数 |
+| Stage | State | PS5 generation | CLIP | UNet graph call | ControlNet | ControlNet evaluations |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| 基準・初回 | 成功 | 124.567秒 | 23.46秒 | 66.294秒 | 14.524秒 | 40 |
-| ① 割当改善・初回 | 成功 | 124.026秒 | 23.43秒 | 66.210秒 | 14.487秒 | 40 |
-| ① 安全なscratch回収・初回 | 成功 | 124.148秒 | 23.48秒 | 66.326秒 | 14.493秒 | 40 |
-| ② CLIP重複削減・初回 | 成功 | 113.543秒 | 12.70秒 | 66.496秒 | 14.531秒 | 40 |
-| ③ UNet改善追加・初回 | 成功 | 112.924秒 | 12.70秒 | 65.698秒 | 14.517秒 | 40 |
-| ④ ControlNetバッチ追加・初回 | 成功 | 113.568秒 | 13.57秒 | 67.089秒 | 13.064秒 | 20 |
-| ④ 同構成・読み込み済み | 成功 | 14.767秒 | 0.00秒 | 9.251秒 | 3.490秒 | 20 |
-| ① 予約9.201GiB・初回（V15） | 成功 | 112.885秒 | 13.54秒 | 66.418秒 | 13.051秒 | 20 |
-| ① CPU重み16MiB目安追加・初回（V16） | 成功 | 115.815秒 | 13.30秒 | 69.615秒 | 13.054秒 | 20 |
+| Baseline, first | Success |124.567 seconds |23.46 seconds |66.294 seconds |14.524 seconds |40 |
+|① Allocation improvement, first | Success |124.026 seconds |23.43 seconds |66.210 seconds |14.487 seconds |40 |
+|① Safe scratch reclamation, first | Success |124.148 seconds |23.48 seconds |66.326 seconds |14.493 seconds |40 |
+|② Reduced duplicate CLIP, first | Success |113.543 seconds |12.70 seconds |66.496 seconds |14.531 seconds |40 |
+|③ Added UNet improvements, first | Success |112.924 seconds |12.70 seconds |65.698 seconds |14.517 seconds |40 |
+|④ Added ControlNet batching, first | Success |113.568 seconds |13.57 seconds |67.089 seconds |13.064 seconds |20 |
+|④ Same configuration, loaded | Success |14.767 seconds |0.00 seconds |9.251 seconds |3.490 seconds |20 |
+|① Reservation 9.201GiB, first (V15) | Success |112.885 seconds |13.54 seconds |66.418 seconds |13.051 seconds |20 |
+|① CPU weight-group target 16MiB, first (V16) | Success |115.815 seconds |13.30 seconds |69.615 seconds |13.054 seconds |20 |
 
-全行の基礎データは[計測記録のrecords](optimization-20261019-evidence.json)を参照。`generation_seconds`はPS5内部で計測した生成時間。UNet graph callなどの工程別値は、内部待機を含むCPU wall timeであり、GPU単体の処理時間ではない。工程は入れ子になっているため、表の列を足して総時間を求めない。
+See [measurement records](optimization-20261019-evidence.json) for all rows. `generation_seconds` is internal PS5 generation time. Phase fields such as UNet graph calls are CPU wall time including waits, not isolated GPU compute. Nested columns cannot be summed to obtain total time.
 
-### ① メモリ割当・再利用
+### ① Memory allocation and reuse
 
-割当改善と、安全なGPU scratch回収を反映した256×256生成は、基準PNGと一致した。今回の初回時間は124.026秒・124.148秒で、基準124.567秒との差は小さく、この2件から明確な高速化を主張しない。
+Allocation and safe scratch-reclamation 256×256 outputs matched the baseline PNG. First times 124.026/124.148 versus 124.567 seconds differ only slightly; these 2 observations do not establish clear acceleration.
 
-一方、モデルとOpenPoseが読み込み済みの状態でCLIP-Gのconditioning cacheが外れると、9GiBではCPU重みの再確保に不足することが確認された。終了時のDirect使用量約7.61GiBにCPU CLIP重みの実測ピーク約1.43GiBが加わるためで、合計空きに加えて連続した空き領域も必要になる。
+With model/OpenPose loaded, a CLIP-G conditioning-cache miss exceeded 9GiB CPU-weight reallocation capacity. Approximately 7.61GiB final Direct live plus 1.43GiB measured CPU CLIP weight peak requires sufficient total and contiguous free space.
 
-**9422MiB（約9.201GiB）への予約拡大は実機で初期化に成功した**。64MiB tensorのGPU Compute読み戻しは不一致0。V15の初回256×256は112.885秒で、基準PNGと一致した。ただし、その後の1024×1024では、合計約1.593GiBの空きがあってもCLIP-G用の連続領域が取れず、予約拡大だけでは断片化を解決できなかった。APIは正常状態へ戻り、running/queuedは0だった。
+**9422MiB (about 9.201GiB) reservation initialized successfully on hardware.**64MiB GPU tensor readback had 0 mismatches. V15 first 256×256 took 112.885 seconds with identical PNG. Later 1024×1024 could not allocate contiguous CLIP-G space despite approximately 1.593GiB total free: reservation alone did not solve fragmentation. API returned healthy with running/queued 0.
 
-続いてCPU重みのブロック目安を16MiBへ小さくしたV16を反映した。単独tensorは分断せず、tensorの所有権と内容を維持したままグループを小さくする。V16も64MiBのGPU読み戻し不一致0、初回256×256は115.815秒で基準PNGと一致。その後の**1024×1024もconditioning再計算を含めて完了**した。1〜4を含む現在の採用構成はV16で、WAIのモデル重み・生成設定は変更していない。[初期化と生成の計測記録](optimization-20261019-evidence.json)
+Then deployed V16 with 16MiB target CPU weight groups, preserving individual tensors, contents and ownership. V16 64MiB GPU readback had 0 mismatches; first 256×256 took 115.815 seconds with baseline identity. **1024×1024 then completed including conditioning recomputation.** Current adopted V16 includes 1–4; WAI weights/settings are unchanged. [Initialization and generation records](optimization-20261019-evidence.json)
 
-cut cacheの解放不足も確認したが、最終segmentの`prune`と、各compute呼び出しの終了guardで既に解放されている。`runner_end()`に重ねて解放を追加する改修は不要。CPU CLIPのlayer streaming案はホスト検証済みだが、現在は保留している。
+Cut-cache release was reviewed: final-segment `prune` and per-compute end guards already release it; no duplicate release in `runner_end()` is needed. CPU CLIP layer streaming passed host checks but remains deferred.
 
-### ② CPU CLIPの重複削減
+## # ② Remove duplicate CPU CLIP computation
 
-SDXLのCLIP-Gでは、clip-skipに応じたhidden出力と最終層のpooled出力を別々に求めていた。共通のencoder計算を1グラフで行い、異なる2出力をそれぞれ取り出す形にした。
+SDXL CLIP-G previously computed the hidden output selected by clip-skip separately from the final-layer pooled output. The shared encoder computation now runs in 1 graph, with the 2 distinct outputs retrieved separately.
 
-CLIP工程は23.46秒から12.70秒へ10.76秒、約45.9%短縮。この段階の生成全体では124.567秒から113.543秒へ約8.9%短縮した。これは②単独の中間構成の値であり、最終V16の約7.0%短縮とは区別する。hiddenとpooledを単純に流用する変更は行っていない。同一PNG・非有限値0を確認した。[計測記録](optimization-20261019-evidence.json)
+CLIP decreased from 23.46 to 12.70 seconds, saving 10.76 seconds or about 45.9%. Total generation at this intermediate stage decreased from 124.567 to 113.543 seconds, about 8.9%. These are intermediate results for ② alone, distinct from the final V16 reduction of about 7.0%. Hidden and pooled outputs are not simply substituted for each other. PNG equality and 0 nonfinite values were verified. [Measurements](optimization-20261019-evidence.json)
 
-### ③ UNetの共通計算・分割実行
+## # ③ Share UNet computation and refine graph splitting
 
-各ResBlockが使う共通のtime/label embeddingをcutで保持し、分割ごとの再計算を減らした。最後の分割境界は、測定したworkspaceと保持cacheの上限が増えない場合だけ統合する。容量確認・重みのpin・同期・異常時の停止条件は維持した。
+The common time/label embedding used by each ResBlock is retained at a cut to reduce repeated computation between partitions. The final partition boundary is merged only when measured workspace and retained-cache limits do not increase. Capacity checks, weight pinning, synchronization, and fault-stop conditions remain in place.
 
-②からの追加比較では、生成全体113.543秒→112.924秒、UNet graph call 66.496秒→65.698秒。同一PNG・非有限値0を確認した。約0.62秒の差は1回ずつの比較なので、速度向上の再現性は別途確認が必要。[計測記録](optimization-20261019-evidence.json)
+Compared with ②, total generation decreased from 113.543 to 112.924 seconds and UNet graph calls from 66.496 to 65.698 seconds. PNG equality and 0 nonfinite values were verified. The approximately 0.62-second difference comes from 1 observation per configuration; repeatability still needs verification. [Measurements](optimization-20261019-evidence.json)
 
-### ④ ControlNetのCFGバッチ化
+## # ④ Batch ControlNet CFG
 
-CFGの正・負のControlNet計算を同じバッチへまとめ、20 stepsで40回だった実行を20回にした。初回のControlNet工程は14.517秒→13.064秒、約10.0%短縮した。生成全体は112.924秒→113.568秒で、この比較では追加短縮していない。同一PNG・非有限値0、CFG fallback未発生を確認した。[計測記録](optimization-20261019-evidence.json)
+Positive and negative ControlNet computations now share a batch, reducing 40 executions to 20 over 20 steps. First-run ControlNet time decreased from 14.517 to 13.064 seconds, about 10.0%. Total generation changed from 112.924 to 113.568 seconds, so this comparison shows no additional overall reduction. PNG equality, 0 nonfinite values, and no CFG fallback were verified. [Measurements](optimization-20261019-evidence.json)
 
-同構成の読み込み済み生成は14.767秒だった。ただしCLIPは0.00秒、UNet重み準備は約0.069秒で、初回からキャッシュ状態が変わっている。**113.568秒と14.767秒の差をControlNetバッチ化だけの効果として扱わない**。
+A warm generation with the same configuration took 14.767 seconds. However, CLIP took 0.00 seconds and UNet weight preparation about 0.069 seconds because cache state had changed since the first run. **The difference between 113.568 and 14.767 seconds must not be attributed solely to ControlNet batching**.
 
-## 1024×1024のアプリ初回比較
+## First generation after app startup at 1024×1024
 
-アプリを通常終了・再起動し、同じV16の実行ファイルと設定でモデル未読込から1024を1枚生成した。旧基準・V16ともに`model_loaded_before=false`を確認。制御画像のupload ID以外はリクエストが完全一致し、PNGも全バイト一致した。[初回の計測記録](optimization-20261019-evidence.json)
+After normal app shutdown and restart, the same V16 executable and settings generated 1 image at 1024 with the model initially unloaded. Both the old baseline and V16 reported `model_loaded_before=false`. Requests were identical except for the control-image upload ID, and PNGs were byte-identical. [First-run measurements](optimization-20261019-evidence.json)
 
-| 項目 | 旧基準（V10） | 最終構成（V16） |
+| Metric | Old baseline (V10) | Final configuration (V16) |
 | --- | ---: | ---: |
-| PS5内生成時間 | 184.026秒 | 161.397秒 |
-| CLIP | 24.26秒 | 14.10秒 |
-| UNet graph call（内部待機込み） | 80.811秒 | 76.435秒 |
-| UNet重み準備（容量確認込み） | 18.959秒 | 18.851秒 |
-| ControlNet | 48.240秒・41回 | 42.337秒・20回 |
-| CFG fallback | あり | なし |
-| Direct予約 | 9GiB | 約9.201GiB |
+| PS5 generation time | 184.026 s | 161.397 s |
+| CLIP | 24.26 s | 14.10 s |
+| UNet graph calls (including internal waits) | 80.811 s | 76.435 s |
+| UNet weight preparation (including capacity checks) | 18.959 s | 18.851 s |
+| ControlNet | 48.240 s / 41 calls | 42.337 s / 20 calls |
+| CFG fallback | Present | None |
+| Direct reservation | 9 GiB | Approximately 9.201 GiB |
 
-生成全体は**22.629秒、約12.3%短縮**した。ControlNetのCFGバッチ化やfallback回避、CLIP・UNet・割当の改修を含む構成全体の比較であり、単一の改修だけの効果には分解しない。利用者のモデル・steps・CFG・sampler・seed・LoRA・制御条件とpromptは維持している。
+Total generation decreased by **22.629 seconds, about 12.3%**. This compares complete configurations, including ControlNet CFG batching, fallback avoidance, and CLIP, UNet, and allocation changes; it does not isolate the effect of any single change. The user's model, steps, CFG, sampler, seed, LoRA, control conditions, and prompts were preserved.
 
-これは両構成それぞれ1回の**アプリ初回**の観測。PS5のOSファイルキャッシュはflushしておらず、ストレージまで完全なcold状態が同じだったという測定ではない。
+This is 1 **first generation after app startup** per configuration. The PS5 OS file cache was not flushed; this does not establish identical fully cold storage conditions.
 
-## V16の1024×1024・読み込み済み確認
+## Warm 1024×1024 verification with V16
 
-256×256生成後、同じプロセスで1024×1024へ変更して1枚生成した。モデルは読み込み済みだったが、CLIPは再計算された。サイズ変更を伴うconditioning cache missと、GPU側の大きい画像の計算を完了した。その後、同じ条件でもう1枚だけ生成し、conditioningのキャッシュを使用した。[1024の計測記録](optimization-20261019-evidence.json)
+After generating at 256×256, the same process generated 1 image at 1024×1024. The model was loaded, but CLIP was recomputed. The run completed a conditioning cache miss associated with the size change and the larger GPU computation. Only 1 additional image was then generated under identical conditions, using the conditioning cache. [1024 measurements](optimization-20261019-evidence.json)
 
-| 項目 | 256→1024サイズ変更後 | 同条件の次の1枚 |
+| Metric | After resizing from 256 to 1024 | Next 1 image under identical conditions |
 | --- | ---: | ---: |
-| PS5内生成時間 | 132.952秒 | 117.600秒 |
-| CLIP | 15.00秒 | 0.00秒 |
-| UNet graph call（内部待機込み） | 76.814秒 | 76.813秒 |
-| ControlNet | 32.386秒・20回 | 32.135秒・20回 |
-| Direct使用ピーク | 約9.039GiB | 約9.039GiB |
-| 終了時CPU CLIP shared Direct借用残量 | 0 | 0 |
-| 非有限値・CFG fallback | 0・なし | 0・なし |
+| PS5 generation time | 132.952 s | 117.600 s |
+| CLIP | 15.00 s | 0.00 s |
+| UNet graph calls (including internal waits) | 76.814 s | 76.813 s |
+| ControlNet | 32.386 s / 20 calls | 32.135 s / 20 calls |
+| Peak Direct usage | Approximately 9.039 GiB | Approximately 9.039 GiB |
+| Outstanding CPU CLIP shared Direct borrowing at completion | 0 | 0 |
+| Nonfinite values / CFG fallback | 0 / None | 0 / None |
 
-2枚とも1024の基準PNGと全バイト一致し、OpenAI互換APIでの取得を確認した。サイズ変更後の実画像表示も確認した。この2枚は`model_loaded_before=true`であり、旧1024の初回読み込みを含む時間に対する速度倍率は算出しない。132.952秒と117.600秒の差には、CLIPのconditioning cache hitによる15秒分の省略が含まれる。初回同士の短縮率は前節の別測定から求めている。
+The 2 images were byte-identical to the 1024 baseline PNG and were retrieved through the OpenAI-compatible API. The actual image after resizing was also inspected. These 2 had `model_loaded_before=true`; no speed ratio against the old first-run 1024 time including loading is calculated. The difference between 132.952 and 117.600 seconds includes 15 seconds omitted by a CLIP conditioning cache hit. First-run improvements use the separate measurements in the preceding section.
 
-## 出力・メモリの確認
+## Output and memory verification
 
-保存された13枚のPNGを再度読み、記録されたSHA256と実ファイルのSHA256を照合した。256の9枚は同じ256×256・38,471 bytesで、次のSHA256に一致した。
+All 13 saved PNGs were read again, comparing their actual SHA 256 values with the recorded values. The 9 images at 256, all at 256 were all 256×256, 38,471 bytes, and matched the following SHA 256.
 
 ```text
 b92fd8fba79b3d2cd3e76c4c1b218ecf1383b2d5de4431d66d852ad512f34a8a
 ```
 
-1024の4枚は1024×1024・505,949 bytesで、旧基準・新しい初回・読み込み済みの間で全バイト一致した。SHA256は次のとおり。
+The 4 images at 1024 were all 1024×1024, 505,949 bytes, and byte-identical across the old baseline, new first run, and warm runs. Their SHA 256 is:
 
 ```text
 98eaa144fa64e8160352709df84f34420249d09023f03e108682d95de9dd8b0d
 ```
 
-OpenAI互換APIで取得したPNGとネイティブAPIのPNGも一致。全件で`nonfinite_values=0`、CPU CLIPのshared Direct残量0、Direct fault retainedなし。これらは出力一致と検査範囲内の有限値を示すもので、PNG一致から画質の優劣まで推定していない。[照合結果](optimization-20261019-evidence.json)
+PNGs retrieved through the OpenAI-compatible and native APIs also matched. Every run had `nonfinite_values=0`, 0 outstanding CPU CLIP shared Direct borrowing, and no retained Direct fault. This establishes output equality and finite values within the inspected scope; PNG equality does not establish superior image quality. [Verification](optimization-20261019-evidence.json)
 
-| 指標 | 基準・①・②・③の初回 | ④初回 | ④読み込み済み |
+| Metric | First runs: baseline / ① / ② / ③ | First run: ④ | Warm run: ④ |
 | --- | ---: | ---: | ---: |
-| Direct予約 | 9GiB | 9GiB | 9GiB |
-| 終了時Direct使用量 | 約7.610GiB | 約7.610GiB | 約7.610GiB |
-| Direct使用ピーク | 約7.677GiB | 約7.695GiB | 約7.697GiB |
-| CPU CLIP shared Directのプロセス稼働中の最大同時借用量 | 約1.430GiB | 約1.430GiB | 約1.430GiB |
-| 終了時CPU CLIP shared Direct残量 | 0 | 0 | 0 |
+| Direct reservation | 9 GiB | 9 GiB | 9 GiB |
+| Direct usage at completion | Approximately 7.610 GiB | Approximately 7.610 GiB | Approximately 7.610 GiB |
+| Peak Direct usage | Approximately 7.677 GiB | Approximately 7.695 GiB | Approximately 7.697 GiB |
+| Maximum simultaneous CPU CLIP shared Direct borrowing during process lifetime | Approximately 1.430 GiB | Approximately 1.430 GiB | Approximately 1.430 GiB |
+| Outstanding CPU CLIP shared Direct borrowing at completion | 0 | 0 | 0 |
 
-V15・V16のDirect予約は約9.201GiBで、256生成終了時の使用量は約7.610GiB、使用ピークは約7.695GiB。CPU CLIPのプロセス稼働中の最大同時借用量はどちらも約1.430GiBで、終了時の借用残量は0だった。
+V15 and V16 reserved approximately 9.201 GiB of Direct memory, used approximately 7.610 GiB at completion of the 256 generation, and peaked at approximately 7.695 GiB. Both had approximately 1.430 GiB maximum simultaneous CPU CLIP borrowing during process lifetime and 0 outstanding borrowing at completion.
 
-Direct使用ピークにはCPU CLIPが借りた領域も含まれる。CPU CLIPの値は**プロセス稼働中の最大同時借用量**であり、確保した量の累計ではない。読み込み済み行では以前の生成から引き継いだ最大値。終了時Direct使用量と同じ時刻の値ではないため、足して総VRAM使用量にしない。プロセスRSSもGPUマッピングと重なるため、CPU専用使用量として扱わない。
+Peak Direct usage includes memory borrowed by CPU CLIP. The CPU CLIP figure is the **maximum simultaneous borrowing during process lifetime**, not cumulative allocations. Warm rows retain the maximum from earlier generations. It was not sampled at the same time as completion usage, so do not add these figures as total VRAM. Process RSS can also overlap GPU mappings and is not CPU-only usage.
 
-## 今回の検証範囲と残る制約
+## Verification scope and remaining limitations
 
-今回の1〜4、V16のモデル未読込1024、256→1024サイズ変更、conditioning cache miss、同条件の読み込み済み1024の検証は完了した。生成設定とモデル重みを維持して、PNG一致・非有限値0・正常な借用返却を確認した。各条件1回の成功であり、長期間の安定動作まで保証する測定ではない。
+Verification completed for changes 1–4, V16 model-unloaded 1024 generation, resizing from 256 to 1024, a conditioning cache miss, and warm 1024 generation under identical conditions. Generation settings and model weights were preserved; PNG equality, 0 nonfinite values, and normal borrowing return were verified. Each condition succeeded 1 time; this is not a long-term stability guarantee.
 
-- 長時間のカタログ連続生成は未検証。
-- TV画面の色はユーザーが「色は直りました」と確認済み。ホームのアイコンキャッシュとは別の確認。
-- ホーム画面のアイコンキャッシュは別件で、この性能検証の完了に含めない。
-- マスク・inpaintingの追加変更は未反映。
+- Long-running continuous catalog generation remains unverified.
+- The user confirmed that TV colors were corrected. This is separate from the home-screen icon cache.
+- The home-screen icon cache is a separate issue and is not included in completion of this performance verification.
+- Additional mask and inpainting changes have not been deployed.

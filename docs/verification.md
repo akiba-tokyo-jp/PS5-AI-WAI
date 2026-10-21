@@ -1,23 +1,23 @@
-# 実機検証の範囲
+# Hardware verification scope
 
-最新のログ削減・容量制限・同一PNGでの速度比較は[ログ検証](logging.md)を参照。
+See [logging verification](logging.md) for the latest log reduction, capacity limits, and speed comparison with identical PNGs.
 
-2026-10-18 JST / PS5 FW12.40。元ログは私用領域に保存し、ここでは成功した生成の数値・ハッシュ・観測範囲を公開します。
-元ログの全文、個人の端末写真、トークン、失敗動画は含めません。
+2026-10-18 JST / PS5 FW 12.40. Original logs are private; this document publishes successful-generation measurements, hashes, and observation scope.
+Full original logs, personal device photos, tokens, and failure videos are excluded.
 
-最新の性能・精度比較は[FP16/CFG検証](precision.md)を参照してください。以下は前版の履歴です。
+For the latest performance/precision comparison, see [FP16/CFG verification](precision.md). The following records the previous version.
 
-## 前版の実測
+## Previous-version measurements
 
-CPU CLIP / Vulkan UNet / Vulkan TAESDXL、Euler A、CFG5、seed135792。同じネイティブプロセスで実行しました。
-TAESDXLのtileは256、overlap0.5。batched CFGは無効、conditioning cacheは2です。
+CPU CLIP / Vulkan UNet / Vulkan TAESDXL, Euler A, CFG 5, seed 135792. Runs used the same native process.
+TAESDXL tile 256, overlap 0.5; batched CFG disabled; conditioning cache 2.
 
-| 項目 | 256×256 / 8 steps | 1024×1024 / 20 steps |
+| Metric | 256×256 / 8 steps | 1024×1024 / 20 steps |
 |---|---:|---:|
-| 初回モデル読込 | 含む | 読込済み |
-| PS5生成時間 | 43.226907秒 | 91.648546秒 |
-| Windows公式SDK応答まで | 44.515秒 | 93.094秒 |
-| PNGサイズ | 86,190 bytes | 857,419 bytes |
+| Initial model loading | Included | Already loaded |
+| PS5 generation time | 43.226907 s | 91.648546 s |
+| Until official Windows SDK response | 44.515 s | 93.094 s |
+| PNG size | 86,190 bytes | 857,419 bytes |
 
 1024 PNG SHA256:
 
@@ -25,50 +25,50 @@ TAESDXLのtileは256、overlap0.5。batched CFGは無効、conditioning cacheは
 3c4eaac8e2b5080a9b49c79c2fecbba213aac031438c3f8c064d010417c66986
 ```
 
-ネイティブ8188のPNG、OpenAI8189のbase64データ、PowerShellのHTTP取得結果、README掲載画像の全バイトが一致しました。
-Windowsは公式OpenAI SDK3.34.0を使用し、`max_retries=0`でPOSTを1回送信しています。
-同じ採用画像を作った以前の20 stepsは87.133804秒で、最新91.648546秒は4.51秒（約5.2%）長くなっています。
-ログ容量対策後の動作確認であり、高速化の成果を示す測定ではありません。2回の記録だけで差の原因を確定していません。
+The native 8188 PNG, OpenAI 8189 base 64 data, PowerShell HTTP retrieval, and README image were byte-identical.
+Windows used the official OpenAI SDK3.34.0 and sent 1 POST with `max_retries=0`.
+The earlier 20-step run producing the same adopted image took 87.133804 seconds; the latest 91.648546 seconds was 4.51 seconds (approximately 5.2%) longer.
+This verified operation after log-capacity measures; it is not evidence of a speed improvement. The cause of the difference was not established from only 2 records.
 
-## GPUの証拠
+## GPU evidence
 
-起動時の64MiB F32 SCALEを読み戻し、16,777,216値の不一致0と期待checksum一致を確認しました。
-画像生成ではGPU同期完了後のUNet重み演算・Flash Attentionを各1件サンプル観測しています。
-1024の処理に対応するカウンター差分はdispatch138,826 / submit29,518 / fence29,518です。
+Startup readback of a 64MiB F32 SCALE checked 16,777,216 values, finding 0 mismatches and the expected checksum.
+Image generation sampled 1 each of completed UNet weight and Flash Attention operations after GPU synchronization.
+Counter deltas for the 1024 generation were dispatch 138,826 / submit 29,518 / fence 29,518.
 
-これはGPU使用率、GPU専用の処理時間、全ノードの実行回数を測ったものではありません。
-6GiBプール全域の読み戻しを証明する結果でもありません。
+These do not measure GPU utilization, GPU-only execution time, or execution counts for every node.
+They also do not prove readback across the entire 6GiB pool.
 
-| メモリ観測 | bytes |
+| Memory observation | bytes |
 |---|---:|
-| Directデータ予約枠 | 6,442,450,944 |
-| 1024生成時の所有データプールピーク | 5,436,981,248 |
-| プロセスpeak RSS | 8,996,077,568 |
+| Direct data reservation | 6,442,450,944 |
+| Owned data-pool peak during 1024 generation | 5,436,981,248 |
+| Process peak RSS | 8,996,077,568 |
 
-共有メモリを含み得るため、RSSとDirectの値を足して消費メモリとしません。
-CPU専用heap使用量、PS5全体のVRAM使用率、温度は取得できていません。
+RSS and Direct usage can include shared memory; do not add them as total consumption.
+CPU-only heap usage, PS5-wide VRAM utilization, and temperature were unavailable.
 
-## ログと復帰
+## Logs and recovery
 
-高頻度3ログは各4MiB現行+4MiB直前の上限を維持しました。startupは累計11回、driverは2回切替。
-保持中の全セグメントが4MiB以下で、生成後にengine available / GPU verified / model loadedを確認しました。
-待機・実行中ジョブは0。既存サービスと同じ本体起動セッションを維持しました。
+The 3 high-frequency logs each retained a 4MiB current + 4MiB previous limit. Startup rotated 11 times in total; driver rotated 2 times.
+All retained segments were at most 4MiB. After generation, engine available / GPU verified / model loaded were confirmed.
+Queued and running jobs were 0. Existing services and the same console boot session were maintained.
 
-致命的エラー時のfailed/degraded通知とshutdown409は、推論を行わないホスト障害注入試験で検証しました。
-実機を意図的にディスク満杯にする試験は行っていません。
+Fatal-error failed/degraded notification and shutdown 409 were verified with host fault injection that performed no inference.
+The hardware disk was not deliberately filled.
 
-## 追加の公開ソース検証
+## Additional public-source verification
 
-公開用フォルダーでネイティブ11翻訳単位とRADV platform1翻訳単位を再コンパイルし、SHA固定の既存依存ライブラリとリンク、SELFのintegrity validを確認しました。
-これは依存キャッシュを使う再ビルドであり、OS・SDK・Mesaを含むクリーン環境からの一括構築試験ではありません。
-実機で稼働した元版のeboot SHAは[verification.json](verification.json)に保存しています。
-公開ビルドで作ったebootを新たに実機起動したとする主張はありません。
-公開ゲートウェイのPS5 ELFとWindows fixtureもビルドし、APIプロトコル30項目とログ・retained状態の7項目が通りました。
-公開版PowerShellクライアントから実PS5のモデル一覧を取得し、保存済み1024 PNGを再取得して上記SHA一致を確認しました。追加の画像生成は行っていません。
+The public folder recompiled 11 native translation units and 1 RADV platform translation unit, linked the existing SHA-pinned dependency libraries, and verified SELF integrity valid.
+This was a rebuild using a dependency cache, not an end-to-end clean build including the OS, SDK, and Mesa.
+The original hardware-running eboot SHA is retained in [verification.json](verification.json).
+There is no claim that the eboot produced by the public build was newly launched on hardware.
+The public gateway PS5 ELF and Windows fixture were also built; 30 API-protocol checks and 7 logging/retained-state checks passed.
+The public PowerShell client retrieved the actual PS5 model list and downloaded the saved 1024 PNG again, confirming the SHA above. No additional image was generated.
 
-## 現時点の制限
+## Current limitations
 
-- 同条件PCベンチマーク、フルVAE品質、1024超の出力は未検証。
-- 別FW・別本体・初期状態からのアプリ登録を汎用手順として検証していません。
-- ホーム画面のアイコンキャッシュ更新は別途確認が必要です。
-- 動画は実結果の振り返り録画です。ライブ推論やHDMI映像ではありません。
+- A same-condition PC benchmark, full-VAE quality, and output above 1024 remain unverified.
+- Other firmware, other consoles, and app registration from an initial state have not been verified as a general procedure.
+- Home-screen icon-cache refresh needs separate verification.
+- Videos are retrospective recordings of actual results, not live inference or HDMI footage.

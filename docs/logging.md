@@ -1,116 +1,116 @@
-# 通常運用のログと速度改善
+# Normal-operation logging and performance
 
-2026-10-18 JST、FW12.40のPS5実機でnormalモードを検証しました。
-WAI-Illustrious-SDXL v17.0、768×1024、20steps、CFG5、Euler A、seed20261018、negative指定なし。
+Verified normal mode on PS5 FW 12.40 on 2026-10-18 JST.
+WAI-Illustrious-SDXL v17.0,768×1024,20steps, CFG 5, Euler A, seed 20261018, no negative prompt.
 
-| 同じプロンプトの状態 | PS5生成時間 | WindowsでPNG取得まで |
+| Same-prompt condition | PS5 generation | Windows PNG retrieval |
 |---|---:|---:|
-| 変更前・遅延中 | 417.90秒 | — |
-| 変更前・5分休止後 | 115.20秒 | 116.61秒 |
-| 変更後・初回モデル読み込みを含む | 92.47秒 | 記録なし |
-| 変更後・モデル読み込み済み | **57.06秒** | **58.17秒** |
+| Before changes, slowed state | 417.90 seconds | — |
+| Before changes, after 5-minute rest | 115.20 seconds | 116.61 seconds |
+| After changes, initial model load included | 92.47 seconds | Not recorded |
+| After changes, model loaded | **57.06 seconds** | **58.17 seconds** |
 
-全ケースで同じPNGになりました。941,994 bytes、SHA256：
-`763b3eca54fda750cbc03081570dafb0d3127824abc0a834c70ae493175ba8cd`。
-warmはconditioning cacheがhitし、CLIP0.00秒。旧ケースのCLIP約7秒との差も含むため、
-時間差の全てをログ変更の効果とは扱いません。
-samplingは392.28→56.13秒、decodeは17.42→0.73秒へ短縮。
-その後の別プロンプト8枚はPS5内72.34～72.42秒、Windows取得73.97～74.14秒でした。
-これらは通常カタログの再開結果で、追加の8枚をテスト用に生成したものではありません。
-長期耐久試験の完了を意味しません。
+All cases produced the same PNG: 941,994 bytes, SHA 256:
+`763b3eca54fda750cbc03081570dafb0d3127824abc0a834c70ae493175ba8cd`.
+Warm conditioning cache hit and CLIP took 0.00 seconds. The old case spent approximately 7 seconds on CLIP, so
+the entire time difference cannot be attributed to logging changes.
+Sampling decreased 392.28→56.13 seconds; decoding 17.42→0.73 seconds.
+The following 8 different-prompt images took 72.34–72.42 seconds on PS5,73.97–74.14 seconds to Windows retrieval.
+These were resumed catalog jobs, not 8 additional test generations.
+This does not establish completed endurance testing.
 
-![同一PNGでの比較](images/log-modes-same-768x1024.png)
+![Comparison using identical PNG](images/log-modes-same-768x1024.png)
 
-## 連続6枚の追加確認
+## Additional 6 consecutive images
 
-2026-10-18 14:26:38～14:33:53 JST、元のカタログを休止せず、異なるプロンプトを順に生成しました。
-遅延発生時は4枚目から低下し、6枚目まで遅延が記録されたため、連続6枚を確認対象にしました。
-768×1024・20steps・CFG5・Euler A・seed20261018・negative指定なしを維持しています。
+2026-10-18 14:26:38–14:33:53 JST: generated different prompts sequentially without pausing the original catalog.
+The reported slowdown began at image 4 and persisted through image 6, so 6 consecutive images were checked.
+Preserved 768×1024,20steps, CFG 5, Euler A, seed 20261018 and no negative prompt.
 
-| 順番 | PS5内生成時間 | WindowsでPNG取得まで |
+| Sequence | PS5 generation | Windows PNG retrieval |
 |---:|---:|---:|
-| 1 | 70.670秒 | 72.36秒 |
-| 2 | 70.648秒 | 72.23秒 |
-| 3 | 70.683秒 | 72.77秒 |
-| 4 | 70.687秒 | 72.77秒 |
-| 5 | 70.659秒 | 72.62秒 |
-| 6 | 70.623秒 | 71.95秒 |
+| 1 | 70.670 seconds | 72.36 seconds |
+| 2 | 70.648 seconds | 72.23 seconds |
+| 3 | 70.683 seconds | 72.77 seconds |
+| 4 | 70.687 seconds | 72.77 seconds |
+| 5 | 70.659 seconds | 72.62 seconds |
+| 6 | 70.623 seconds | 71.95 seconds |
 
-6枚ともcompleted、GPU使用記録あり、エラーなし。OpenAI互換クライアントが保存した各PNGと、
-ネイティブAPIのGETで取得したPNGは全バイト一致し、PNG全デコードも成功しました。
-ジョブ間の間隔は0～1秒で、追加生成POST・休止・プロセス再起動・PS5設定変更は行っていません。
-ネイティブAPIとゲートウェイは同じPID・started_atのまま継続しました。
+All 6 completed with GPU-use evidence and no errors. Each PNG saved by the OpenAI-compatible client
+matched the native GET byte for byte and passed full PNG decoding.
+Job gaps were 0–1 seconds; no additional generation POSTs, pauses, process restarts or PS5 setting changes.
+Native API and gateway retained the same PID/started_at values.
 
-後半3枚／前半3枚の生成時間中央値の比は0.9998で、この6枚では4～5倍の遅延は再発していません。
-報告されたCPUピーク9,098,674,176 bytes、GPUピーク5,404,590,080 bytesも6枚で不変でした。
-これらはプロセス／所有プールの生存期間のピークで、現在使用量や全VRAMの測定値ではありません。
-値が不変でもメモリリークがない証明にはならず、全カタログの長期運用完了も意味しません。
+Last 3/first 3 median-time ratio 0.9998; no 4–5× slowdown recurred in these 6 images.
+Reported CPU peak 9,098,674,176 bytes and GPU peak 5,404,590,080 bytes also stayed constant across 6 images.
+These are process/owned-pool lifetime peaks, not current usage or total VRAM measurements.
+Unchanged peaks do not prove absence of leaks or completed long-term catalog operation.
 
-[![連続6枚の確認結果](images/log-modes-continuous-six.png)](media/log-modes-continuous-six.mp4)
+[![Results from 6 consecutive images](images/log-modes-continuous-six.png)](media/log-modes-continuous-six.mp4)
 
-[16秒のWindows結果確認動画](media/log-modes-continuous-six.mp4)です。
-完了結果を表示した実際のWindows画面の録画で、生成のライブ録画ではありません。
-正確な数値とPNGハッシュは[logging-verification.json](logging-verification.json)の
-`continuous_catalog_followup`にあります。
+[16-second Windows results recording](media/log-modes-continuous-six.mp4).
+Recorded an actual Windows screen displaying completed results, not live generation.
+Exact values and PNG hashes are in [logging-verification.json](logging-verification.json),
+under `continuous_catalog_followup`.
 
-## normalとdebug
+## Normal and debug modes
 
-未指定はnormalです。設定に次を追加するとdebugになります。これは設定全体ではなく追加項目です。
+Normal is the default. Add the following to select debug; this is an addition, not a complete configuration.
 
 ```json
 {"logging":{"level":"debug"}}
 ```
 
-AGC初期化前に1回だけ固定し、切り替えは通常のアプリ再起動時に行います。
+Resolved 1 time before AGC initialization; switch through a normal app restart.
 
-| 記録 | normal | debug |
+| Record | normal | debug |
 |---|---|---|
-| GPU submit・fence・SuspendPointごとの正常追跡 | 省略、集計を保持 | 詳細 |
-| 正常な割り当て・解放・内部cleanup | 省略、使用量・peakを保持 | 詳細 |
-| 開始・完了、工程時間、モデル状態、GPU使用証跡 | 保持 | 保持 |
-| 警告・エラー・異常戻り値・retention・重要な完了境界 | 保持・即時同期 | 保持・即時同期 |
-| SD.cpp DEBUG/VERBOSE・splitされた全文プロンプト | 省略 | 詳細 |
-| グラフのデータ・scratchメモリ計画 | 現段階は診断用に保持 | 保持 |
-| 重複するraw stderrファイル | 作成しない | 作成しない |
+| Successful per-submit/fence/SuspendPoint tracing | Omitted; counters retained | Detailed |
+| Normal allocation/free/internal cleanup | Omitted; usage/peak retained | Detailed |
+| Start/completion, phase time, model state, GPU evidence | Retained | Retained |
+| Warnings/errors/abnormal returns/retention/critical completion | Retained; immediate sync | Retained; immediate sync |
+| SD.cpp DEBUG/VERBOSE and split full prompts | Omitted | Detailed |
+| Graph data/scratch plans | Retained for current diagnostics | Retained |
+| Duplicate raw stderr files | Not created | Not created |
 
-normalでも実際のGPU戻り値検査、フェンス・quiet確認、メモリ計画検証、有限値検査は実行します。
-ログを省略してGPUの失敗を成功扱いにする変更ではありません。
-warmでは350,510件を整形・書き込み前に省略。
-測定したstartup/driverのfsyncは合計24回、待ち時間合計約36ms。
-変更前の遅延ログ例では同サイズ・同stepsで約5,500回、数百秒の待ち時間でした。
-集計にはローテーション等の別I/Oを含まず、別スレッドの累計時間は壁時計時間と区別します。
+Normal mode still checks actual GPU returns, fences/quiescence, memory plans and finite values.
+Suppressing logs never converts GPU failures into successes.
+The warm run omitted 350,510 records before formatting/writing.
+Measured startup/driver fsync totaled 24 calls and approximately 36ms waiting.
+An earlier slowed log at the same size/steps had approximately 5,500 calls and hundreds of seconds waiting.
+Counters exclude other I/O such as rotation; cumulative times on separate threads are not wall-clock totals.
 
-通常モードに残るグラフ計画は300件で、engineログ全体は316イベント・192,710 bytes/枚でした。
-debug時の定例ログも1,024件／512KiB／1秒経過でまとめて同期します。
-1秒は次の記録時に検査する条件で、アイドル時のタイマー保証ではありません。
-重要記録、失敗、最終チェックポイントは即時同期します。
+Normal mode retained 300 graph plans; engine logging totaled 316 events/192,710 bytes per image.
+Routine debug logs also batch synchronization at 1,024 records /512KiB /1 elapsed second.
+The 1-second threshold is checked on the next record, not an idle timer guarantee.
+Critical records, failures and final checkpoints synchronize immediately.
 
-## ログの保持容量
+## Log retention limits
 
-| 継続ログ | 1セグメント | 世代 | 合計 |
+| Continuous log | 1 segment | Generations | Total |
 |---|---:|---:|---:|
-| startup / driver / pool | 各4MiB | 各2 | 24MiB |
+| startup / driver / pool |4MiB each |2 each |24MiB |
 | engine.jsonl | 16MiB | 2 | 32MiB |
-| ネイティブAPI api.log | 2MiB | 2 | 4MiB |
-| OpenAIゲートウェイ api.log | 2MiB | 2 | 4MiB |
-| **主要な継続ログ** | | | **64MiB** |
+| Native API api.log |2MiB |2 |4MiB |
+| OpenAI gateway api.log |2MiB |2 |4MiB |
+| **Primary continuous logs** | | | **64MiB** |
 
-download側は24MiB枠で、残りはdata側です。生成を続けても主要ログの保持容量は増え続けません。
-起動ごとの小さなbootstrap・witness、開発操作の一度限りの証跡は別枠。
-生成画像・ジョブ履歴も別枠で、自動削除しません。
-既に上限を超えていた旧ログは、移行時のpreviousを別途回収してください。
-今回の実機ファイルは全て上限内です。
+Download-side logs occupy 24MiB; remaining logs are on the data side. Primary log retention does not grow indefinitely with generation.
+Small per-startup bootstrap/witness files and one-use development receipts are separate.
+Generated images/job histories are also separate and are not automatically deleted.
+Retrieve migrated previous files separately if old logs already exceeded their bounds.
+All measured console files remained within their limits.
 
-GPUの演算・submit/fence・メモリ所有の実装、モデル、FP32、6GiB Directプールを維持しました。
-起動時の精度読み戻し2件・畳み込み検査4件、40回のUNet出力検査、NaN/Inf0を確認。
-同画像のdispatch137,630／submit29,143／fence29,143も変更前と一致。
-これらはGPU使用率の測定値ではありません。
+GPU computation, submit/fence and ownership implementations, model, FP32 and 6GiB Direct pool were preserved.
+Verified 2 startup precision readbacks, 4 convolution cases, 40 UNet output checks and 0 NaN/Inf values.
+Matching-image counters also remained 137,630 dispatches /29,143 submissions /29,143 fences.
+These are not GPU-utilization measurements.
 
-実機で実行したバイナリのSHA256は
-`a1ec807794ab605e7c814cc12328ce54208bcaa1f68af2dd05a8400e21f51807`。
-公開ソースの別ビルドはSELF整合性まで検査し、実機実行したバイナリとは区別しています。
-記録は[logging-verification.json](logging-verification.json)、ソース対応は[source-snapshot.json](source-snapshot.json)。
+The console-executed binary SHA 256 is
+`a1ec807794ab605e7c814cc12328ce54208bcaa1f68af2dd05a8400e21f51807`.
+The separate public-source build passed SELF integrity and is distinguished from the executed artifact.
+Records: [logging-verification.json](logging-verification.json); source correspondence: [source-snapshot.json](source-snapshot.json).
 
-## 2026-10-19：Direct poolと通常解放の同期境界
+## 2026-10-19: Direct pool and normal-release synchronization boundaries
 
-ControlNet利用時に正常Direct解放のphase名がnormalの既存一覧から漏れていた問題を修正しました。checked recordは全件保持し、正常なpoolの割当・import・返却だけ同期を128件/64KiB/1秒（次の記録時に判定）へまとめ、PNG公開前に必須checkpointを追加しました。異常、debug、初期化・終了、物理allocation/mappingは即時同期を維持します。current/previous容量制限も維持しました。[工程別実測と回帰テスト](unet-profiling.md)を参照してください。
+Fixed normal Direct-release phase names missing from the normal-mode allowlist with ControlNet. Retained every checked record while batching successful pool allocation/import/return sync at 128 records/64KiB/1 second (checked on the next record), with a mandatory checkpoint before PNG publication. Errors, debug, initialization/teardown and physical allocation/mapping still sync immediately. Current/previous limits remain. See [phase measurements and regression](unet-profiling.md).

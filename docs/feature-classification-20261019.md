@@ -1,76 +1,76 @@
-# 機能検証・改修分類（2026-10-19）
+# Feature verification and improvement classification (2026-10-19)
 
-保存済みの実機ログ・PNG・現行ソースを照合した検証記録です。現行V18はDirect9422MiB（約9.201GiB）、推論予算8.75GiBを維持し、IP重みの寿命とCPUエンコーダーの順序を修正しました。通常機能は代表条件の1024まで実機確認しました。全パラメーター・全組合せの総当たり検査ではありません。通信切断後の運用者による結果回収と、連続6件の代表条件を確認しました。24時間や全カタログの完走保証ではありません。
+Verification against saved console logs, PNGs and current source. V18 preserves Direct 9422MiB (about 9.201GiB) and an 8.75GiB inference budget, fixing IP weight lifetimes and CPU encoder order. Representative normal features passed up to 1024; this is not exhaustive parameter/combination coverage. Verified operator recovery after disconnect and 6 consecutive representative jobs, not 24-hour or full-catalog completion.
 
-256での成功はAPI・GPU処理・マスク保持などの機構の確認です。1024の成功や画質合格を保証しません。1024でも生成完了と、人物の同一性・ポーズ・指定色の達成は分けて評価します。Windowsは入力前処理・転送・PNG取得・照合だけを行い、推論はPS5上で実行します。検証動画は撮影しません。
+A256 success verifies mechanisms such as API, GPU work and mask preservation, not 1024 or visual quality. Even at 1024, completion is assessed separately from identity, pose and requested colors. Windows only preprocesses/transfers inputs and retrieves/compares PNGs; inference runs on PS5. No verification videos are recorded.
 
-## 確認できた範囲
+## Verified scope
 
-| 機能・組合せ | 保存済み実機結果 | 品質・未確認範囲 | 分類 |
+| Feature / combination | Saved console result | Quality / unverified scope | Classification |
 | --- | --- | --- | --- |
-| WAI text-to-image＋漫画LoRA＋OpenPose | V18の1024／20steps連続6件は124.176〜124.446秒、中央値124.199秒。同一プロンプト対のPNGが一致 | 短文258〜260Bの代表条件で、元の長文カタログと同一条件の再現・24時間運用ではない | 代表条件6件の機構・運用確認済み |
-| img2img＋漫画LoRA＋OpenPose | 添付キャラから1024を3ポーズ生成、108〜115秒 | 髪色・衣装は概ね反映。顔・袖・体型は変化。座り姿の手を膝に置く指定は未達 | 品質に改善余地 |
-| IP-Adapter単独、LoRAなし、強度0.3 | V17で256が38.686秒、1024が95.859秒。V18の1024初回は126.311秒、20steps、16画像トークン・GPU IP attention・PNG取得を確認。V18のPNGはV17の同条件1024とバイト一致 | 初回／読込済み条件が異なるため速度劣化率とはしない。顔の同一性や「両腕を下ろす」指定の完全一致は未達 | V18回帰確認済み、品質に改善余地 |
-| IP-Adapter＋OpenPose、LoRAなし、IP強度0.7 | V18の1024が146.823秒、20steps、ControlNet40回、16画像トークン、GPU両機能・PNG取得を確認 | 両腕を下ろす指定は反映。顔が白く高コントラストになり、画風・長袖化・靴の見切れは未達。単独IP強度0.3とはプロンプト等も異なるため単一要因の比較ではない | 1024機構確認済み、品質未達 |
-| IP-Adapter＋マスクimg2img、LoRAなし | 256が31.056秒、実行17steps、マスク準備・GPU IP attention・領域内変更を確認。1024のIP＋マスク機構は次行の全部併用条件で確認 | LoRAなし・ControlNetなしの1024という個別条件は別生成していない。人物固定や編集部の実用画質は未達 | 代表条件の機構確認済み、品質に改善余地 |
-| IP-Adapter＋漫画LoRA＋OpenPose＋マスク | V17の256が51.456秒。V17では1024のメモリ確保が失敗したが、V18は同じ予約枠の1024を141.357秒で完了。実行17steps、ControlNet34回、16画像トークン、GPU両機能、マスク外変更0画素を確認 | マスク外の腕・顔の維持は保持機構の証拠であり、人物固定や腕のポーズ変更の証拠にはしない。プロンプトは青い服を指定しており赤への編集試験ではない | 1024の確保不良を改修・再検証済み、編集品質に改善余地 |
-| 白黒部分マスク＋漫画LoRA | 256が63.217秒、マスク外変更0画素。1024のControlNetなし代表条件は下記の柔らかい白黒マスクで確認 | 指定した赤いスカートにはならない | 機構確認済み、意味的編集に改善余地 |
-| 透過部分マスク＋漫画LoRA＋OpenPose | 1024が172.897秒、マスク外変更0画素、GPU ControlNetを確認 | 指定色の達成は未達 | 機構確認済み、品質に改善余地 |
-| 柔らかい白黒／透過マスク＋漫画LoRA | 256は37.572秒／14.410秒、同じ論理マスクから同一PNG。V18の白黒1024は98.782秒、実行17steps、マスク外902,575画素の変更0、領域内120,373画素変更。77,273の中間濃度画素で最終RGB合成の範囲違反0 | ControlNetなしでも指定した赤いスカートにはならず、意味的編集の品質合格とはしない。拡散中は二値マスクで、柔らかさは最後のRGB合成に適用。1024の透過版は別生成せず、256での同値性と透過1024の既存試験で補う | 1024機構・最終feather確認済み、意味的編集とlatent soft maskに改善余地 |
-| 全領域を編集するマスク＋漫画LoRA | 256が14.435秒。V18の1024が75.634秒、実行17steps、mask_prepared=true、1,036,664画素変更。全白なのでlatent合成0回は正常。GPU生成・PNG取得を確認 | 1024の顔・手は256より整ったが、赤いスカートの指定は未達。全白は保持領域がないためマスク外保持の証拠にはしない | 1024機構確認済み、意味的編集に改善余地 |
-| 部分マスク＋漫画LoRA＋Canny | V17の256が51.356秒、領域内6,526画素変更。V18の1024が151.549秒、実行17steps、ControlNet34回、マスク外944,203画素の変更0、領域内104,351画素変更。GPU ControlNet・PNG同一性を確認 | 赤いスカートの指定は未達 | 1024機構確認済み、意味的編集に改善余地 |
-| Canny／OpenPose | それぞれ256・1024のGPU生成を既存検証で確認。IP＋OpenPoseの1024併用もV18で確認。入力は完成済みRGB制御マップ | 全機能の任意組合せ・全パラメータの網羅検査ではない | 個別・代表併用確認済み |
-| OpenAI接続の途中切断 | sampler進捗0.32でWindowsのHTTP接続を閉じてもPS5は142.043秒で完了。運用者が内部対応ログからIDを特定し、別GET接続でgateway／native同一PNGを回収。同一プロセスの次の通常生成も成功 | 通常クライアントが応答前に切断した場合の未知ジョブ検索は確認・提供していない。取消やGPU停止の検査ではない | 処理継続・運用者回収確認済み、相関ID等に改修余地 |
-| 通常のOS経路によるアプリ終了・再起動と残存記録 | V18更新時に本体bootとgatewayを維持してnativeを通常終了・1回起動。合成queued／running各1件をfailedへ変換、本物の既存2件の記録・PNGは一致。合成記録だけ削除。起動時64MiB Compute読み戻し不一致0 | 実画像推論を強制中断していない。実GPUハング・突然の電源断からの復旧とは区別 | 実機の通常再起動・合成残存記録処理を確認済み |
+| WAI text-to-image + manga LoRA + OpenPose | V18:6 consecutive 1024/20-step jobs, 124.176–124.446 seconds, median 124.199. Same-prompt PNG pairs matched | Representative 258–260B short prompts; not the original long-prompt catalog conditions or 24-hour operation | Mechanisms/operation verified for 6 representative jobs |
+| img2img + manga LoRA + OpenPose | Generated 3 poses at 1024 from supplied character in 108–115 seconds | Hair/outfit broadly reflected; face, sleeves and body varied. Requested hands-on-knees sitting pose was not achieved | Quality needs improvement |
+| IP-Adapter alone, no LoRA, strength 0.3 | V17:256 in 38.686 seconds, 1024 in 95.859. V18 first 1024 in 126.311:20steps, 16 image tokens, GPU IP attention and PNG retrieval; identical to the matched V17 1024 PNG produced by V18 | Different first-run/warm states prevent a slowdown-rate claim. Exact identity and both-arms-down instruction were not achieved | V18 regression passed; quality needs improvement |
+| IP-Adapter + OpenPose, no LoRA, IP strength 0.7 | V18:1024 in 146.823 seconds, 20steps, 40 ControlNet evaluations, 16 image tokens, both GPU paths and PNG retrieval | Both arms lowered, but face was pale/high-contrast; style, long sleeves and uncropped shoes were not achieved. Prompt and other conditions differ from IP 0.3 alone |1024 mechanism verified; quality target unmet |
+| IP-Adapter + masked img2img, no LoRA |256 in 31.056 seconds: 17 actual steps, mask preparation, GPU IP attention and in-mask changes. IP+mask 1024 verified in the all-features case below | No separate 1024 test without LoRA/ControlNet. Identity lock and practical edit quality remain unmet | Representative mechanism verified; quality needs improvement |
+| IP-Adapter + manga LoRA + OpenPose + mask | V17:256 in 51.456 seconds; V17 1024 allocation failed. V18:1024 completed in 141.357 within the same reservation: 17 actual steps, 34 ControlNet evaluations, 16 image tokens, both GPU paths and 0 outside-mask changes | Preserved outside-mask face/arms prove masking, not identity lock or pose editing. Prompt requested blue clothing, not a red-edit test |1024 allocation fixed and retested; editing quality needs improvement |
+| Grayscale partial mask + manga LoRA |256 in 63.217 seconds; 0 outside-mask changes. No-ControlNet 1024 covered by the soft grayscale mask below | Requested red skirt was not achieved | Mechanism verified; semantic editing needs improvement |
+| Alpha partial mask + manga LoRA + OpenPose |1024 in 172.897 seconds; 0 outside-mask changes and GPU ControlNet verified | Requested color was not achieved | Mechanism verified; quality needs improvement |
+| Soft grayscale/alpha mask + manga LoRA |256:37.572 /14.410 seconds, identical PNG from equivalent logical masks. V18 grayscale 1024:98.782 seconds, 17 actual steps; 0 changes among 902,575 outside pixels; 120,373 changed inside pixels; 0 final-RGB blending violations across 77,273 intermediate-alpha pixels | Red skirt remained unmet even without ControlNet. Diffusion uses binary masks; softness applies at final RGB. Alpha 1024 not separately generated here; supplemented by 256 equivalence and prior alpha 1024 |1024 mechanism/final feather verified; semantic editing/latent soft masks need improvement |
+| Full-edit mask + manga LoRA |256 in 14.435 seconds. V18:1024 in 75.634,17 actual steps, mask_prepared=true, 1,036,664 changed pixels. All-white mask correctly needed 0 latent blends. GPU generation/PNG retrieval passed |1024 faces/hands improved over 256, but red skirt remained unmet. All-white has no preserved area and cannot prove outside-mask preservation |1024 mechanism verified; semantic editing needs improvement |
+| Partial mask + manga LoRA + Canny | V17:256 in 51.356 seconds, 6,526 changed inside pixels. V18:1024 in 151.549,17 actual steps, 34 ControlNet evaluations; 0 changes among 944,203 outside pixels; 104,351 changed inside pixels. GPU ControlNet/PNG identity passed | Red-skirt instruction unmet |1024 mechanism verified; semantic editing needs improvement |
+| Canny / OpenPose | Prior GPU generation at 256/1024 for each; V18 also verified IP+OpenPose 1024. Inputs are prepared RGB control maps | Not exhaustive arbitrary feature combinations/parameters | Individual and representative combined cases verified |
+| OpenAI connection interrupted | Closed Windows HTTP at sampler progress 0.32; PS5 completed in 142.043 seconds. Operator identified ID in internal logs and recovered identical gateway/native PNGs over a separate GET. Next normal generation passed in the same process | Unknown-job discovery before response is neither verified nor provided to normal clients. Not a cancellation/GPU-stop test | Continued execution/operator recovery verified; correlation IDs remain open |
+| Normal OS app close/restart and stale records | V18 update preserved boot/gateway, normally closed and launched native 1 time. Converted 1 each of synthetic queued/running records to failed; 2 real records/PNGs remained identical. Deleted only synthetic records; startup 64MiB Compute had 0 mismatches | Did not forcibly interrupt real inference; distinct from GPU-hang or sudden-power-loss recovery | Normal restart and synthetic stale-record handling verified |
 
-時間は各画像のPS5内の値です。読込状態・解像度・機能が違う行同士の時間比は性能倍率として扱いません。V18の3つのIP条件と白黒soft／全領域／Canny付きマスク1024は成功完了、有限値検査の非有限値0、CPU CLIP用借用の終了時live=0、fault_retained=falseを確認しました。各条件1枚の確認であり、長期運用の証拠ではありません。要求20stepsに対し、denoise_strength=0.8のimg2imgは実行17stepsです。通常機能の代表条件とエッジ条件を選んだ検査であり、同じ機構のパラメータを全て組み合わせた検査ではありません。
+Times are internal PS5 values; ratios across different load states, resolutions or features are not speedups. V18's3 IP cases and grayscale-soft/full/Canny-mask 1024 completed successfully with 0 nonfinite values, final CPU CLIP borrowing live=0 and fault_retained=false. Each condition was observed 1 time, not long-term operation. Img2img denoise_strength=0.8 executes 17 of 20 requested steps. Representative normal/edge cases were selected, not every combination of mechanism parameters.
 
-## 運用試験で確認した範囲と制約
+## Operational verification and limitations
 
-通信切断試験では、POSTから61.938秒、sampler進捗0.32の時点でWindowsのHTTP接続だけを閉じました。現在の20steps用callback式とGPU UNet完了のソース照合から、最低6 sampler steps完了後の切断と判断できます。PS5上の生成は142.042663秒で完了しました。ジョブIDはクライアントへのHTTP応答から得たものではなく、運用者権限で既存gatewayの内部対応ログから特定しました。そのIDを使う別GET接続で結果を回収し、gatewayとnativeのPNG一致を確認しました。したがって、応答前切断時の未知ジョブを一般のOpenAIクライアントが確実に検索できるという結果ではありません。相関ID、idempotency、事前ジョブID発行は追加改修の候補です。不明な生成POSTを自動再送しません。
+Disconnected only Windows HTTP61.938 seconds after POST at sampler progress 0.32. Comparing the 20-step callback and completed GPU UNet source establishes at least 6 completed sampler steps. PS5 completed in 142.042663 seconds. Operator privileges and existing gateway correspondence logs supplied the ID, not the client's HTTP response. A separate GET recovered matching gateway/native PNGs. This does not provide reliable unknown-job discovery to normal clients before a response. Correlation IDs, idempotency and advance job IDs are candidates. Unknown-outcome generation POSTs are not automatically resent.
 
-その後、同じnative／gatewayプロセスのまま、1024×1024・20steps・CFG5・Euler A・漫画LoRA1＋OpenPose1で6件を一件ずつ連続生成しました。PS5内の時間は順に124.176034、124.446369、124.189468、124.195161、124.315023、124.203206秒です。前半／後半3件の中央値は124.189468／124.203206秒で、後半÷前半は1.000111でした。3種類の短いリボン指定をA/B/C/A/B/Cで使い、同じプロンプトのペアはPNGがバイト一致しました。全件で有限値検査、CPU用Direct借用の終了時0、fault_retained=falseを確認し、所有Directデータプールの終了時使用量は全件8,170,340,352Bで一致しました。
+Then, in the same native/gateway processes, generated 6 serial 1024×1024/20steps/CFG 5/Euler A/manga LoRA 1+OpenPose 1 jobs: 124.176034,124.446369,124.189468,124.195161,124.315023,124.203206 PS5 seconds. First/last 3 medians 124.189468/124.203206; ratio 1.000111. Used 3 short ribbon prompts in A/B/C/A/B/C order; same-prompt PNGs matched byte for byte. All passed finite checks, final CPU Direct borrowing 0 and fault_retained=false; final owned Direct usage was 8,170,340,352B in every job.
 
-元の速度低下は768×1024・約1.7〜2.0KBのカタログ用プロンプトで起きたもので、今回の1024×1024・258〜260 UTF-8 bytesの3プロンプトとは同一条件ではありません。元の低下が現れた4〜6件目を含む件数帯で、今回4〜5倍低下が再現しなかったという範囲の結果です。24時間・全2,756枚の完走、元カタログの完全再現試験とはしません。工程別時間はCPU側の壁時計で、純GPU timestampではありません。
+The original slowdown used 768×1024 and approximately 1.7–2.0KB catalog prompts; these 3 prompts were 1024×1024 and 258–260 UTF-8 bytes. The 4–5× slowdown did not recur across the 4th–6th-job range observed here, but this is not an exact reproduction, 24-hour test or full 2,756-image completion. Phase timings are CPU wall time, not pure GPU timestamps.
 
-6件終了時のcurrentログはengine 5,533,681B、startup 4,100,804B、pool 1,231,115Bで、それぞれ16／4／4MiBの枠内でした。全ログ系列の容量やディスク満杯を強制検証した結果ではありません。画像出力や履歴そのものの長期保存容量も別に管理する必要があります。
+After 6 jobs, current logs were engine 5,533,681B, startup 4,100,804B and pool 1,231,115B, within their 16/4/4MiB bounds. This did not force-test every log series or a full disk. Long-term image/history storage requires separate management.
 
-## 1024全部併用のメモリ寿命修正
+## Memory-lifetime fix for all-features 1024
 
-以前の確保拒否について、連続空き領域の不足とVision工程全体の容量不足を保存済み数値から切り分けました。V18ではIP画像投影とUNetのIP K/Vだけを再読み込み可能にし、CPUテキスト重みを解放してからCLIP-Visionを実行します。予約枠・GPUドライバー・演算精度・シェーダー・API仕様は維持しました。
+Saved measurements distinguish fragmented free regions from insufficient total Vision capacity. V18 makes only IP projection and UNet IP K/V reloadable and runs CLIP-Vision after freeing CPU text weights. Reservation, GPU driver, precision, shaders and API remain unchanged.
 
-漫画LoRA1＋IP0.3＋OpenPose1＋部分マスクの1024は141.356660秒で完了しました。直前と同じOpenPoseを読み込み済みの状態で、テキスト条件も実際に再計算しています。テキスト重み222回とVision重み5回の確保がすべて返却され、両工程の同時借用を避けたことを実ログで確認しました。Direct使用ピークは9,313,894,400バイト、予約内の残量は565,788,672バイトです。CPU借用も含むプールの高水位で、専用VRAM使用量ではありません。
+Manga LoRA 1+IP 0.3+OpenPose 1+partial-mask 1024 completed in 141.356660 seconds. OpenPose was already loaded; text conditioning was actually recomputed. All 222 text-weight and 5 Vision-weight allocations were returned; logs prove their lifetimes no longer overlap. Direct peak 9,313,894,400 bytes left 565,788,672 within the reservation. This pool highwater includes CPU borrowing, not dedicated VRAM.
 
-原因の数値、速度比較の初回／読込済み条件、出力PNGの一致、公開ビルドと実機SELFの区別は[IPメモリ寿命の検証](ip-lifecycle-20261019.md)と[機械可読値](ip-lifecycle-20261019-evidence.json)を参照してください。生の失敗ログや私有の参照画像は添付していません。
+See [IP lifetime verification](ip-lifecycle-20261019.md) and [machine-readable data](ip-lifecycle-20261019-evidence.json) for causal values, first/warm comparison conditions, PNG identity and public-build/executed-SELF distinctions. Raw failure logs and private reference images are not attached.
 
-## 現実装では提供していないもの
+## Not provided by the current implementation
 
-| 項目 | 現在の扱い | 将来の可能性 |
+| Item | Current handling | Future possibility |
 | --- | --- | --- |
-| 厳密な同一キャラ固定・必ず指定どおりの手指やポーズ | 結果を保証する機能はない | 学習済みキャラLoRA・参照方式・適切な骨格マップや強度を検討。今回の少数画像だけで不可能と断定しない |
-| 写真からのOpenPose自動検出 | 未実装。完成した骨格マップを受け取る | 前処理器を別途実装する余地あり |
-| サーバー内のCanny前処理 | 完成済みRGBエッジマップを受け取る。検証時のCanny前処理はWindows上の画像フィルター | 前処理のPS5側統合は追加開発 |
-| multipartのcontrol_imageファイル | 未実装。既存control_image_idは利用可能 | 受信・所有権・後始末を追加する改修余地あり |
-| 拡散中の連続階調soft mask | 現行はマスクをroundして二値化。最終RGBには0〜255のfeatherを適用 | latent側の変更と再検証が必要 |
-| 専用inpainting重み・領域だけのROI推論 | 通常WAI checkpointで全画面masked img2imgを実行 | 別方式のモデル互換・画質・メモリ検証が必要 |
-| 複数LoRAの任意投入・複数ControlNet同時使用 | 現行APIは設定済み漫画LoRAと1種類のControlNetを選ぶ | API・常駐方式・予算を拡張する追加開発 |
-| OpenAIの全製品互換、streaming、n>1、透過／JPEG／WebP出力 | このAPIの対応範囲外。PNG1枚の互換サブセット | 個別の追加実装として扱う |
-| 生成中ジョブの取消・GPUリセットによる自動復旧 | 取消APIなし。idle shutdownのみ。GPU fault時は保持・degradedにして自動再送しない | 不確かな実行中リソースを強制解放しない設計。安全な取消は別途開発 |
-| 応答前切断したOpenAIリクエストの未知ジョブ検索・idempotency | 現行クライアントAPIでの保証なし。今回の回収は運用者が内部ログでIDを確認 | クライアント相関ID、idempotencyキー、事前受付IDなどを追加する余地あり |
+| Strict identity lock and guaranteed requested hands/poses | No guaranteed-result feature | Consider trained character LoRA, reference methods, appropriate skeleton maps/strengths. These few images do not establish impossibility |
+| Automatic OpenPose from photos | Not implemented; accepts prepared skeleton maps | Additional preprocessor implementation |
+| Server-side Canny preprocessing | Accepts prepared RGB edge maps; verification preprocessing used a Windows image filter | PS5 preprocessing requires development |
+| Multipart control_image files | Not implemented; existing control_image_id works | Add reception, ownership and cleanup |
+| Continuous soft masks during diffusion | Current masks are rounded to binary; final RGB uses 0–255 feathering | Requires latent changes/revalidation |
+| Dedicated inpainting weights / ROI-only inference | Full-frame masked img2img with normal WAI checkpoint | Different model compatibility, quality and memory validation |
+| Arbitrary multiple LoRAs / concurrent multiple ControlNets | API selects configured manga LoRA and 1 ControlNet type | Extend API, residency and budgets |
+| All OpenAI products, streaming, n>1, transparent/JPEG/WebP output | Outside this API; compatible subset returns 1 PNG | Separate feature implementations |
+| Cancel active jobs / automatic GPU-reset recovery | No cancellation API; idle shutdown only. GPU faults retain resources, degrade and do not retry | Never force-free uncertain active resources; safe cancellation requires development |
+| Unknown-job discovery/idempotency after pre-response OpenAI disconnect | Not guaranteed by client API; operator recovered ID from internal logs | Client correlation IDs, idempotency keys or advance acceptance IDs |
 
-「現実装にない」「現構成の試行で失敗した」「原理的に不可能」は異なります。現時点で、上記の画質や組合せを原理的に不可能と断定する根拠はありません。取得できていないハードウェア温度・クロック・使用率を推定表示する機能も追加しません。
+Not implemented, failed in the tested configuration, and fundamentally impossible are different claims. Current evidence does not establish impossibility of these quality targets/combinations. No inferred temperature, clock or utilization display is added.
 
-## 分類と残る改善・検証
+## Classification and remaining improvements/tests
 
-- 改修・再検証済み：全部併用1024のVision重み確保不良。通常の生成・参照・マスク・ControlNetは上表の代表条件で実機確認済みです。
-- 動作確認済みだが品質に改善余地：マスク内の指定色、顔・手の修正、人物の同一性、骨格指定への追従。成功PNGやマスク外の厳密保持を、編集意図の達成と同一視しません。
-- 現実装で未提供：上表の前処理器、複数ControlNet、専用inpaint／ROI、連続階調latent mask、取消、相関ID等。追加開発と追加検証の対象で、原理的に不可能とは判断していません。
-- 追加の実機検証が必要：24時間等の長時間連続運用、元の長文カタログと同一条件の再現、ディスク満杯、実GPU faultや突然の電源断からの復旧。今回は実画像推論を強制中断せず、通常OS再起動＋合成記録とクライアント通信切断を確認しました。ホストの36項目の再読込検査も、実GPUハングの復旧証拠とはしません。
+- Fixed and retested: Vision allocation failure in all-features 1024. Normal generation, references, masks and ControlNet passed representative console conditions above.
+- Functional but quality needs improvement: requested masked colors, face/hand edits, identity and skeleton following. Successful PNGs or exact outside-mask preservation do not establish intended-edit success.
+- Not currently provided: preprocessors, multiple ControlNets, dedicated inpainting/ROI, continuous latent soft masks, cancellation and correlation IDs above. These need development/testing and are not judged fundamentally impossible.
+- Further console tests: long continuous operation such as 24 hours, exact original long-prompt catalog conditions, full disks, GPU faults and sudden-power-loss recovery. Here real inference was not forcibly interrupted; normal OS restart with synthetic records and client disconnect were tested. The 36 host reload checks are not GPU-hang recovery evidence.
 
-## 公開している検証範囲
+## Published verification scope
 
-[IPのメモリ寿命と1024併用](ip-lifecycle-20261019.md)、[機械可読の成功値](ip-lifecycle-20261019-evidence.json)、[従来のマスク実測](masked-inpainting-20261019.md)、[性能比較](optimization-20261019.md)に条件と限界を記載しています。新しい参照キャラクター画像、生成画像、個人用ログ、認証情報はこの更新に含めていません。検証動画も作成していません。
+Conditions/limitations are in [IP memory lifetime and combined 1024](ip-lifecycle-20261019.md), [machine-readable success values](ip-lifecycle-20261019-evidence.json), [earlier mask tests](masked-inpainting-20261019.md) and [performance comparison](optimization-20261019.md). This update includes no new private reference/production images, personal logs or credentials. No verification video was created.
 
-## 運用検証の数値
+## Operational measurements
 
-[運用・復旧の実機結果](operations-recovery-20261019.txt)・[機械可読値](operations-recovery-20261019-evidence.json)。連続6件の終了時Direct使用量は全件8,170,340,352バイト。プロセス生涯ピーク9,705,046,016バイトで、予約内残量は観測時約166.55MiBだった。CPU借用を含む高水位であり、専用VRAM使用量ではない。6件の安定は24時間や任意組合せの保証ではない。
+[Console operations/recovery](operations-recovery-20261019.txt) · [Machine-readable data](operations-recovery-20261019-evidence.json). All 6 jobs ended at 8,170,340,352 Direct bytes. Process-lifetime peak 9,705,046,016 left approximately 166.55MiB within the reservation when observed. The highwater includes CPU borrowing, not dedicated VRAM.6 stable jobs do not guarantee 24 hours or arbitrary combinations.

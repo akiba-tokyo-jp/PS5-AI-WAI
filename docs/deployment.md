@@ -1,89 +1,89 @@
-# 配置と運用
+# Deployment and operation
 
-この版は既にネイティブHomebrewを起動できるFW12.40の検証環境を使っています。
-初回登録・Jailbreak・互換payloadの導入を自動化したインストーラーではありません。
-既存の登録・起動環境がないPS5へ、FTPでebootを置くだけでは起動しません。
+Uses the verified FW 12.40 environment with native Homebrew launch already available.
+This is not an installer automating initial registration, jailbreak or compatible payload installation.
+Copying eboot through FTP alone cannot launch an unregistered title on a PS5 without an existing launch environment.
 
-## 検証済みレイアウト
+## Verified layout
 
 ```text
 /data/ai/
-├── models/                         元のモデル
-├── output/                         確認済みPNGの保存
-├── openai-gateway/                 CPUアダプター設定・ジョブ・出力
+├── models/                         Original models
+├── output/                         Verified PNG storage
+├── openai-gateway/                 CPU adapter config, jobs and outputs
 └── native-wai-direct/PPSA99188/
     ├── eboot.bin
     ├── sce_sys/param.json          PS5 AI WAI
-    ├── sce_sys/icon0.png           WAIで生成した採用アイコン
-    ├── sce_module/libc.prx         既存の検証済み公開runtime
-    ├── models/                    ネイティブから /app0/models
+    ├── sce_sys/icon0.png           Adopted WAI-generated icon
+    ├── sce_module/libc.prx         Existing verified public runtime
+    ├── models/                    Native /app 0/models
     ├── licenses/
-    └── ai-runtime/                ネイティブから /app0/ai-runtime
+    └── ai-runtime/                Native /app 0/ai-runtime
         ├── config.json
-        ├── config/api-token       起動時だけ存在
+        ├── config/api-token       Present only during startup
         ├── jobs/
         ├── output/
         └── logs/
 ```
 
-この登録済みタイトルには既存のアプリ用aliasがあります。今回の更新・検証でmountやシステムメタデータを変更していません。
-このaliasを一般的なPS5に自動作成する処理は公開していません。
-タイトルID PPSA99188を別アプリが使っている場合は上書きしないでください。
+This registered title uses an existing application alias. No mounts or system metadata were changed during this update/verification.
+Automatic creation of that alias on arbitrary PS5 systems is not published.
+Do not overwrite title ID PPSA99188 if another app uses it.
 
-## 配置前に揃えるもの
+## Deployment prerequisites
 
-自身のネイティブアプリが登録済みで、公開SystemServiceの通常起動・終了経路を使えることが前提です。
-検証版はLaunchAppの引数に依存せず、native APIのパスとbind IPv4をコンパイル時に固定しています。
-**`native/app/server.c`の`bind_ip`を自身のプライベートIPv4へ変更してから再ビルド**してください。
-公開ソースの既定値は検証機のプライベートアドレスです。0.0.0.0や公開IPv4に変更しないでください。
+Requires an already registered native app and normal public SystemService launch/close paths.
+The verified version does not rely on LaunchApp arguments; native API paths and bind IPv4 are fixed at compile time.
+**Change `native/app/server.c` `bind_ip` to your private IPv4 and rebuild.**
+The public source default is the test console's private address. Do not replace it with 0.0.0.0 or a public IPv4.
 
-ゲートウェイは`--root /data/ai/openai-gateway --bind <PS5_IP> --port 8189`を指定して起動します。
-同じbind IPの8188へ転送するため、両者のIPを揃えます。
-既存WebSrv8080は維持し、生成API機能をWebSrv本体へ追加していません。
+Launch the gateway with `--root /data/ai/openai-gateway --bind <PS5_IP> --port 8189`.
+It forwards to 8188 on the same bind IP; configure matching addresses.
+Existing WebSrv 8080 is preserved; image generation is not added to WebSrv itself.
 
-## 設定と秘密トークン
+## Configuration and secret tokens
 
-エンジン設定は[config/native.json.example](../config/native.json.example)を基準にします。
-実際のmodel copyのサイズ・全内容SHAを確認し、別モデルを同じファイル名で配置しないでください。
-runtimeとconfigのディレクトリはアプリUID1・0700、トークンは0600で、32〜256の印刷可能ASCIIを使用します。
-トークンをソース、URL、Git、共有スクリーンショットに含めないでください。
+Use [config/native.json.example](../config/native.json.example) as the engine configuration baseline.
+Verify actual model-copy sizes and full-content SHA values. Never replace a file with another model under the same name.
+Runtime/config directories require application UID 1 and 0700; tokens require 0600 and 32–256 printable ASCII characters.
+Never include tokens in source, URLs, Git or shared screenshots.
 
-native bootstrapは設定と一度限りのトークンを待ちます。
-既存環境では、所有者・起動時刻・タイトル・bootが確定してから設定とtokenを渡し、UID1/0700へ戻して解放しています。
-途中でroot所有に戻したままGPU処理を継続するとアプリの書き込みを妨げます。
-このshsrvでは`chown 1 PATH`の数値形式を使用し、`1:1`形式を使いません。
-FTPのmetadataで実所有者を確認します。SDK statのUID欄だけで成功としません。
+Native bootstrap waits for configuration and a one-use token.
+In the existing environment, pass configuration/token only after verifying owner, start time, title and boot; restore UID 1/0700 before releasing the app.
+Leaving root ownership in place while GPU work continues prevents application writes.
+This shsrv uses numeric `chown 1 PATH`, not `1:1` syntax.
+Verify the actual owner through FTP metadata, not merely the SDK stat UID field.
 
-## 起動後の順序
+## Startup sequence
 
 ```mermaid
 flowchart TD
-  A[登録済みネイティブタイトルを通常起動] --> B[設定と一度限りtokenの受渡し]
-  B --> C[AGC / RADV / Vulkan 初期化]
-  C --> D[64MiB Compute読み戻し照合]
-  D --> E[テレビ状態画面と8188 API]
-  E --> F[CPU OpenAIアダプター8189を起動]
-  F --> G[Windowsから生成 / PNG取得]
+  A[Normally launch registered native title] --> B[Pass config and one-use token]
+  B --> C[Initialize AGC / RADV / Vulkan]
+  C --> D[Verify 64MiB Compute readback]
+  D --> E[TV status screen and 8188 API]
+  E --> F[Launch CPU OpenAI adapter 8189]
+  F --> G[Generate and retrieve PNG from Windows]
 ```
 
-`GET /health`を認証付きで確認し、GPU unavailableやdegradedのまま生成を繰り返さないでください。
-モデルは最初の生成で読み込まれ、その後同じアプリ内で保持します。再起動後の初回読込は必要です。
-生成中のweight staging/graph segment転送までゼロになるという意味ではありません。
+Check authenticated `GET /health`. Do not repeatedly generate while GPU unavailable or degraded.
+Models load on the first generation and remain in the same app. The first load is required again after restart.
+This does not eliminate weight staging or graph-segment transfers during generation.
 
-## ログと復旧
+## Logs and recovery
 
-| 場所 | 上限・用途 |
+| Location | Limit and purpose |
 |---|---|
-| `/download0/ai-native-bounded-logs-v2/` | startup / driver / pool、各4MiB×2世代、計最大24MiB |
-| `/app0/ai-runtime/logs/engine.jsonl` | engine結果、16MiB×2世代 |
-| `/app0/ai-runtime/` | bootstrap、API、ジョブ、画像。データ側 |
+| `/download0/ai-native-bounded-logs-v2/` | startup / driver / pool: 4MiB×2 generations each, 24MiB combined maximum |
+| `/app0/ai-runtime/logs/engine.jsonl` | Engine results: 16MiB×2 generations |
+| `/app0/ai-runtime/` | Bootstrap, API, jobs and images on the data side |
 
-HTTPタイムアウトだけで再生成せず、既知のjob_idを確認します。
-retained状態ではGPU資源を勝手に解放・再利用せず、本人のアプリID/PID/起動時刻を確認して通常のOS終了経路を使います。
-ネイティブのshutdown409は、止まったワーカーを安全にjoinできないことを示します。
-ゲートウェイの終了でネイティブGPUアプリを止める実装にはしていません。
+Inspect a known job_id instead of regenerating solely because HTTP timed out.
+In a retained state, do not free/reuse uncertain GPU resources. Verify the app ID, PID and start time, then use normal OS close.
+Native shutdown 409 indicates that a stalled worker cannot safely be joined.
+Stopping the gateway does not stop the native GPU application.
 
-本体やサービスの応答がなければ、自動でpayloadやアプリを重ねて起動しません。
-本体を復帰した後、既存のFTP/Telnet/WebSrvを起動し、保存ログとモデル・タイトルの配置を確認します。
-停止原因を確定できないままDirect Memory手動解放、予算値変更、システムファイルの書換えを行いません。
-FW更新・初期化・外部公開はこの運用手順に含みません。
+If console/services are unresponsive, do not automatically launch overlapping payloads or apps.
+After console recovery, start the existing FTP/Telnet/WebSrv and inspect saved logs and model/title placement.
+Do not manually release Direct Memory, change budgets or rewrite system files without identifying the stop cause.
+Firmware updates, initialization and external exposure are outside this operating procedure.

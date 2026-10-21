@@ -1,23 +1,23 @@
-# UNet工程別計測・ログ同期・表示色の修正（2026-10-19）
+# UNet phase timing, log synchronization, and display-color fixes (2026-10-19)
 
-FW12.40の同じPS5で、WAI v17.0、OpenPose、1024×1024、20steps、CFG5、Euler A、seed20261018、漫画LoRA1、自動monochromeなし、同じプロンプト・negative・入力mapを使いました。両回ともアプリを通常終了後に起動し、モデル未読込から生成しています。予約9GiB・18個の512MiB region・予算8.75GiB、RADVとFP32演算を維持しました。
+Both runs used the same PS5 on FW 12.40, WAI v17.0, OpenPose, 1024×1024, 20steps, CFG 5, Euler A, seed 20261018, manga LoRA 1, no automatic monochrome, and identical prompts, negatives, and input maps. Each run followed normal app shutdown/startup with the model initially unloaded. Reservation 9GiB, 18 regions of 512MiB, budget 8.75GiB, RADV, and FP32 arithmetic were preserved.
 
-| 比較 | PS5内生成 | モデル状態 |
+| Comparison | PS5 generation time | Model state |
 |---|---:|---|
-| v8・計測のみ、同期変更前 | 194.543737秒 | 初回 |
-| v10・ログ同期＋BGRA表示形式修正 | 184.026332秒 | 初回 |
+| v8: instrumentation only, before synchronization changes | 194.543737 s | First run |
+| v10: log synchronization + BGRA display-format fix | 184.026332 s | First run |
 
-今回は約10.52秒、約5.4%短縮しました。各1枚の観測で、長期の速度保証・統計的な速度比較ではありません。v10のWindows/OpenAI応答は184.906秒。Windowsで推論はしていません。
+This saved approximately 10.52 seconds or 5.4%. Each configuration generated 1 image; this is not a long-term speed guarantee or statistical comparison. The v10 Windows/OpenAI response took 184.906 seconds. Windows performed no inference.
 
-20 sampler steps、UNet・ControlNet・TAESDXLのVulkan経路、NaN/Inf0、CPU CLIP一時借用の返却0、OpenAI/native PNG全バイト一致を確認しました。修正前のv7・v8ともPNGが完全一致しました。
+Verification confirmed 20 sampler steps; Vulkan paths for UNet, ControlNet, and TAESDXL; NaN/Inf 0; 0 outstanding CPU CLIP temporary borrowing; and byte-identical OpenAI/native PNGs. PNGs also matched the earlier v7 and v8 outputs exactly.
 
-PNG SHA256 `98eaa144fa64e8160352709df84f34420249d09023f03e108682d95de9dd8b0d`。初回CFGバッチは1回失敗し、そのstepだけGPU上で条件を1件ずつ計算する代替経路になりました。CPUでのUNet推論への切り替えではありません。成功UNet出力21回、失敗を含むgraph_total22回、ControlNet41回を記録しました。全stepの完全バッチ化を達成したとは扱いません。
+PNG SHA 256: `98eaa144fa64e8160352709df84f34420249d09023f03e108682d95de9dd8b0d`. The first CFG batch failed 1 time; only that 1 step used a fallback computing conditions individually on the GPU. This was not CPU UNet inference. Recorded counts were 21 successful UNet outputs, graph_total 22 including the failure, and 41 ControlNet calls. This does not claim full batching of every step.
 
-## CPUで観測した内訳
+## Breakdown observed on CPU
 
-これは呼び出し前後のCLOCK_MONOTONICによるCPU側経過時間です。**GPUタイムスタンプではありません。** graph_callには内部GPU待ち、weight_prepareには読込・配置・容量調整、workspaceにはメモリ管理とそのログ処理が含まれます。graph_totalやcleanupなどには包含関係があるため、列を合計して生成時間と比較しないでください。
+These are CPU-side elapsed times measured with CLOCK_MONOTONIC around calls. **They are not GPU timestamps.** graph_call includes internal GPU waits; weight_prepare includes loading, placement, and capacity adjustment; workspace includes memory management and its logging. graph_total and cleanup have nested relationships, so do not sum columns and compare them with total generation time.
 
-| 計測区間 | v8 秒 | v10 秒 |
+| Measured interval | v8 seconds | v10 seconds |
 |---|---:|---:|
 | `unet.graph_total` | 115.336936 | 105.421987 |
 | `unet.graph_call_including_internal_wait` | 79.412522 | 80.810967 |
@@ -31,55 +31,55 @@ PNG SHA256 `98eaa144fa64e8160352709df84f34420249d09023f03e108682d95de9dd8b0d`。
 | `startup_log_fsync` | 5.246403 | 0.147166 |
 | `engine_structured_log` | 2.263281 | 2.284576 |
 
-UNetのgraph_callは複数分割グラフの合計です。activation_uploadは観測した入力転送呼び出しで、全PCIe/メモリ転送の総量ではありません。重みコピーの観測範囲も一部に限られます。明示的workspace waitだけが小さくても、内部待ちが無いとは言えません。
+UNet graph_call sums multiple graph partitions. activation_upload covers observed input-transfer calls, not all PCIe/memory traffic. Observed weight copying also covers only part of the work. Small explicit workspace waits do not establish absence of internal waits.
 
-v10で追加した、ログを除くbackend idle pollingは0.124910秒／124476回でした。ログを含むquiescence呼び出しは0.478794秒です。どちらも対象箇所のCPU経過時間であり、全GPU同期の総量ではありません。全計測のinvalid clockは0です。
+The backend idle polling added in v10, excluding logging, took 0.124910 seconds over 124476 calls. Quiescence calls including logging took 0.478794 seconds. Both are CPU elapsed times at the measured sites, not total GPU synchronization time. All measurements had 0 invalid clocks.
 
-## 修正したログ同期
+## Corrected log synchronization
 
-正常なDirectバッファ解放のphase名`native_Direct_owned_buffer_free`が、normal用の既存一覧と一致せず、通常処理でも即時fsyncになっていました。正常import記録にも同じ即時同期がありました。以前のv7観測では、Canny/OpenPose両方3588回のstartup fsyncにそれぞれ5.971878秒／77.135470秒を使っていました。差71.16秒は遅延の一部を直接説明しますが、全生成時間差や熱・クロックの原因を特定したものではありません。
+The normal Direct-buffer-free phase `native_Direct_owned_buffer_free` did not match the existing normal-phase list, causing immediate fsync during normal work. Normal import records also synchronized immediately. Earlier v7 observations recorded 3588 startup fsync calls for both Canny and OpenPose, taking 5.971878 and 77.135470 seconds respectively. The 71.16-second difference directly explains part of the delay, but does not establish the cause of the entire generation-time difference, temperature, or clocks.
 
-v10は正常処理のchecked recordを保持したまま同期をまとめます。startupは既存のnormal境界、poolは128件／64KiB／1秒（次の書き込み時に判定）で同期します。PNG公開前に必須のpool checkpointを追加しました。debug、初期化、終了、物理割当・mapping、異常時の即時同期は維持しています。GPUの状態照会、fence、所有権・返却の検査は省略していません。
+v10 batches synchronization while retaining checked records for normal work. Startup uses existing normal boundaries; the pool synchronizes at 128 records / 64KiB / 1 second, evaluated on the next write. A mandatory pool checkpoint was added before PNG publication. Debug, initialization, shutdown, physical allocation/mapping, and fault synchronization remain immediate. GPU state queries, fences, ownership checks, and return checks are retained.
 
-- pool fsync：5016→98回、7.485292→0.183589秒。
-- startup fsync：3597→98回、5.246403→0.147166秒。
-- GPU quiescence照会回数は双方124476回で維持。成功記録そのものは減らしていません。既存のcurrent＋previous各4MiBなどの容量制限も維持しました。
+- Pool fsync: 5016→98 calls, 7.485292→0.183589 seconds.
+- Startup fsync: 3597→98 calls, 5.246403→0.147166 seconds.
+- GPU quiescence queries remained at 124476 in both runs. Successful records were not reduced. Existing limits, including current + previous logs of 4MiB each, were retained.
 
-v8では以前の77秒のstartup fsyncは再現していません。したがって以前の329.68秒と今回184.03秒の全差を、この修正の効果とは扱いません。CPU温度・GPUクロックは未測定です。残る最大の観測区間はUNet graph_callで、GPU演算と内部待ちの分離は今後の課題です。
+v8 did not reproduce the earlier 77-second startup fsync. Therefore, the entire difference between the earlier 329.68 seconds and this run's 184.03 seconds is not attributed to this fix. CPU temperature and GPU clocks were not measured. UNet graph_call remains the largest observed interval; separating GPU computation from internal waits remains future work.
 
-## 連続領域不足の実測
+## Measured contiguous-space shortage
 
-poolの割当失敗時にbitmapを確認する診断を追加しました。同じジョブで要求167772160B（160MiB）、総空き799571968B（762.53MiB）、最大連続空き159383552B（152MiB）、region上限512MiBを記録しました。総空きよりも連続空きが不足する断片化を実測できました。予約全体が単純に不足した証拠ではありません。
+A diagnostic inspecting the bitmap on pool allocation failure recorded a request of 167772160B (160MiB), total free space of 799571968B (762.53MiB), largest contiguous free span of 159383552B (152MiB), and region limit 512MiB in the same job. This directly measured fragmentation: insufficient contiguous space despite enough total free space. It is not proof that the total reservation was simply too small.
 
-初回CFG代替も同じジョブで観測しました。割当失敗とその代替経路の直接の因果関係を特定したものではありません。次は大きな作業バッファと持続する重みの配置順を見直す候補です。この版ではallocator配置、予約量、CPU/GPU演算は変えていません。poolピーク8.502GiBはCPU一時借用も含む所有プールのプロセスピークで、GPU専用VRAM使用量ではありません。peak RSSも共有mappingを含み得るため足し合わせません。
+The first CFG fallback occurred in the same job, but a direct causal relationship with allocation failure was not established. Reviewing placement order for large work buffers and persistent weights is a next candidate. This version did not change allocator placement, reservation size, or CPU/GPU arithmetic. The 8.502GiB pool peak is the owned-pool process peak including CPU temporary borrowing, not dedicated GPU VRAM usage. Peak RSS may also contain shared mappings and must not be added.
 
-## アプリの表示色とアイコン
+## App display colors and icon
 
-ユーザー写真で赤紫のカードと色の変わったキャラクターを確認しました。CPUがBGRA順で書く一方、VideoOutは別形式`0x8000000022000000`でした。[参考実装の実測BGRA SDR形式](https://github.com/mihawk-99/PS5_Vulkan/blob/f410e67a0241b3e8edcdbcd2a9b285dfc4a412ed/docs/HARDWARE_FINDINGS.md#L54)の`0x8000000000000000`へ、表示属性1箇所だけを変更しました。32MiBの表示メモリ、描画、flip、寿命、約1秒更新は維持しています。
+The user's photo showed reddish-purple cards and a discolored character. CPU writes used BGRA order, while VideoOut used another format, `0x8000000022000000`. Only 1 display attribute was changed to `0x8000000000000000`, the [measured BGRA SDR format in the reference implementation](https://github.com/mihawk-99/PS5_Vulkan/blob/f410e67a0241b3e8edcdbcd2a9b285dfc4a412ed/docs/HARDWARE_FINDINGS.md#L54). Display memory 32MiB, drawing, flip, lifetime, and approximately 1-second updates were preserved.
 
-CPUでR/G/Bのbyte順と全2073600画素のtiled/linear一致、境界を検証し、実機の表示完了・heartbeat継続・表示fault0を確認しました。TV上の配色はユーザー確認待ちです。
+CPU checks verified R/G/B byte order, tiled/linear equality for all 2073600 pixels, and boundaries. Hardware confirmed completed display updates, a continuing heartbeat, and 0 display faults. TV color confirmation was pending the user.
 
-![同じ描画コードによる仮データのプレビュー](images/dashboard-colour-preview.png)
+![Mock-data preview using the same drawing code](images/dashboard-colour-preview.png)
 
-これはWindows上のCPUプレビューで、PS5 HDMIの画像ではありません。
+This is a CPU preview on Windows, not a PS5 HDMI capture.
 
-ホーム側はユーザー写真で旧アイコンのままと確認しました。配置済みPNG4件は新キャラクターと全SHA一致ですが、登録情報のicon0Infoは古いキャッシュ識別子付きでした。画像ファイル更新とホーム表示の反映は別です。読み取り調査に留め、DB直接編集・ShellUI強制終了・本体再起動はしていません。ホーム更新成功とは扱いません。
+The user's photo confirmed that the home screen still showed the old icon. All 4 deployed PNGs matched the new character's SHA, but registered icon 0Info retained an old cache identifier. Updating image files and refreshing the home display are separate. Investigation remained read-only: no direct DB editing, forced ShellUI termination, or console restart. Home-icon refresh is not claimed as successful.
 
-## 保存した証拠と復旧
+## Retained evidence and recovery
 
-実機使用SELFのSHA256は`31e28c339ad0cc42691478253e083bf4c456c3f9ebca5ba7b84e82e694a44b2d`です。公開ソースの再ビルドは別成果物であり、そのSELFを実機実行したという意味ではありません。
+The hardware-used SELF SHA 256 was `31e28c339ad0cc42691478253e083bf4c456c3f9ebca5ba7b84e82e694a44b2d`. The public-source rebuild is a separate artifact; this does not mean that rebuilt SELF ran on hardware.
 
-前SELFと設定を保持し、検証前にカタログを現在の1枚完了後のSTOP状態に維持しました。PID・開始時刻・boot・アプリIDを確認し、OSの通常終了で差し替え、GPU64MiB読み戻し16777216値・mismatch0を確認してから生成しました。プロセス強制終了・GPU手動解放・FW更新はしていません。
+The previous SELF and configuration were retained. Before testing, the catalog remained in STOP state after finishing its current 1 image. PID, start time, boot, and app ID were checked; normal OS app shutdown preceded replacement. GPU 64MiB readback verified 16777216 values with mismatch 0 before generation. No forced process termination, manual GPU release, or firmware update was performed.
 
-通常復旧は現在のジョブの完了とidleを確認してからアプリをOSで終了し、保存済みSELFへ戻して通常起動します。PIDだけを信用したkillや重複起動はしません。調査が終わった時点でカタログは停止のままです。
+Normal recovery waits for the current job to finish and the app to become idle, shuts down through the OS, restores the saved SELF, and starts normally. No kill based solely on PID or duplicate launch is used. The catalog remained stopped at the end of investigation.
 
-Windowsホスト回帰テストはchecked record200件の保持、128件/64KiB/1秒の境界、debug/初期化の即時同期、最終checkpoint、同期失敗時のsticky faultを検証しました。モデル推論・PS5接続はありません。計測ヘルパーも区間識別、nested scope、errno/戻り値保持、無効時の未計測を確認しました。
+Windows host regressions verified retention of 200 checked records; 128-record / 64KiB / 1-second boundaries; immediate synchronization for debug/initialization; the final checkpoint; and sticky faults on synchronization failure. They performed no model inference or PS5 connection. Timing helpers also verified interval identity, nested scopes, errno/return-value preservation, and no measurement when disabled.
 
 ```powershell
 python tests/direct_logsync_host.py --compiler <mingw-clang.exe> --out <host-test-output>
-# phase_profile_host.cppはnative/appをincludeし、-UNDEBUG -lwinpthread付きでWindows用にビルド。
+# phase_profile_host.cpp includes native/app and is built for Windows with -UNDEBUG -lwinpthread.
 ```
 
-[![実Windows録画の完了部分](images/controlnet-openpose1024-logsync.png)](media/controlnet-openpose1024-logsync.mp4)
+[![Completion segment of the actual Windows recording](images/controlnet-openpose1024-logsync.png)](media/controlnet-openpose1024-logsync.mp4)
 
-動画は実Windows API操作録画の完了部分12秒です。PS5内の生成時間は184.03秒であり、動画の長さが生成時間という意味ではありません。PS5 HDMIの録画ではありません。公開ソースの再ビルド・SELF整合性・24 constructorの順序と外部import一致・Windowsホスト回帰テストも通過しました。公開版再ビルドSELFの実機再実行は行っていません。
+The video is the final 12 seconds of an actual Windows API-operation recording. PS5 generation took 184.03 seconds; video duration is not generation time. It is not PS5 HDMI footage. Public-source rebuild, SELF consistency, ordering of 24 constructors and matching external imports, and Windows host regressions passed. The rebuilt public SELF was not rerun on hardware.

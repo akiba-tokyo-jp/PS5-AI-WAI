@@ -1,53 +1,53 @@
-# FP16とCFGバッチ化の実機比較
+# Hardware comparison of FP16 and CFG batching
 
-PS5 FW12.40、WAI v17.0、20 steps、Euler A、CFG5、seed135792。Windows公式OpenAI SDKからPS5のAPIを呼び、実PNGを取得しました。推論はPS5です。
+PS5 FW 12.40, WAI v17.0, 20 steps, Euler A, CFG 5, seed 135792. The official Windows OpenAI SDK called the PS5 API and retrieved actual PNGs. Inference ran on PS5.
 
-## 採用する構成
+## Adopted configuration
 
-**FP32演算モード + CFGバッチ化**を採用しました。条件付き・無条件をbatch2で一緒に処理し、20ステップのUNet呼び出しは40回から20回です。モデル、steps、seed、デコーダー設定を維持しました。
+**FP32 arithmetic + batched CFG** was adopted. Conditional and unconditional inputs are processed together as batch 2, reducing UNet calls from 40 to 20 over 20 steps. Model, steps, seed, and decoder settings were preserved.
 
-| 読み込み済み・同条件の繰り返し | FP32逐次CFG | FP16逐次CFG | FP32バッチCFG |
+| Warm repeats under identical conditions | FP32 sequential CFG | FP16 sequential CFG | FP32 batched CFG |
 |---|---:|---:|---:|
-| 256×256 / 20 | 35.44秒 | 41.88秒 | **14.62秒** |
-| 1024×1024 / 20 | 84.09秒 | 未計測 | **79.27秒** |
+| 256×256 / 20 | 35.44 s | 41.88 s | **14.62 s** |
+| 1024×1024 / 20 | 84.09 s | Not measured | **79.27 s** |
 
-バッチ化後の短縮率は256で58.7%、1024で5.7%でした。256 PNGは逐次版とバイト一致、1024の一致は`true`です。
-条件埋め込みcache hitは各繰り返しで2、モデル再読込は0。単回測定であり、常にこの速度になると保証する値ではありません。
+Batching reduced time by 58.7% at 256 and 5.7% at 1024. The 256 PNG was byte-identical to the sequential version; the 1024 equality result was `true`.
+Each repeat had 2 conditioning embedding cache hits and 0 model reloads. These are single observations, not guaranteed speeds.
 
-最初の256要求（モデル読込を含む）はFP32逐次57.30秒、FP16逐次56.97秒、FP32バッチ48.18秒でした。
-最初の1024要求（モデルは読込済み、条件cache miss）はFP32逐次91.65秒、FP16逐次322.82秒、FP32バッチ82.80秒です。
-初回と繰り返しを混ぜて速度比を求めません。FP16の1024繰り返しは未計測です。
+The first 256 request, including model loading, took 57.30 seconds for FP32 sequential, 56.97 seconds for FP16 sequential, and 48.18 seconds for FP32 batched CFG.
+The first 1024 request, with the model loaded but a conditioning cache miss, took 91.65 seconds for FP32 sequential, 322.82 seconds for FP16 sequential, and 82.80 seconds for FP32 batched CFG.
+First runs and repeats are not mixed to calculate speed ratios. The FP16 1024 repeat was not measured.
 
-## FP16の確認
+## FP16 verification
 
-実機の`shaderFloat16`、`storageBuffer16BitAccess`、`uniformAndStorageBuffer16BitAccess`はすべてtrueでした。
-FP16起動時は変数そのものを`unsetenv("GGML_VK_DISABLE_F16")`で解除し、実GGMLログの`fp16: 1`と変数不在を確認しました。`=0`を設定する方法は使いません。
-この変更はPS5のネイティブ起動コードが行います。Windowsの環境変数を変えるだけでPS5側が切り替わるわけではありません。
+On hardware, `shaderFloat16`, `storageBuffer16BitAccess`, and `uniformAndStorageBuffer16BitAccess` were all true.
+FP16 startup removed the variable itself with `unsetenv("GGML_VK_DISABLE_F16")`; actual GGML logs confirmed `fp16: 1` and variable absence. Setting `=0` was not used.
+The PS5 native startup code performs this change. Changing a Windows environment variable alone does not switch PS5 behavior.
 
-F16重み行列演算とF16 K/V Attentionを実GPUで読み戻して照合しました。直接畳み込みは別途、丸め済みの実入力からCPU倍精度で求めた正解値と2形状で照合しています。最大絶対誤差は約4.71e-7、不一致0でした。
-この照合に合格してから直接畳み込みを使い、大きなim2col中間テンソルを避けます。FP16版で1024 PNGを生成できましたが、この構成では速度の利益を確認できず、既定をFP32に戻しました。
+F16 weight matrix operations and F16 K/V Attention were read back from the actual GPU and checked. Direct convolution was separately compared across 2 shapes with CPU double-precision reference values derived from the actual rounded inputs. Maximum absolute error was approximately 4.71e-7, with 0 mismatches.
+Direct convolution is enabled only after this verification, avoiding a large im 2col intermediate tensor. The FP16 version generated a 1024 PNG, but no speed benefit was verified in this configuration; FP32 was restored as default.
 
-## 画質とメモリ
+## Image quality and memory
 
-![FP32バッチCFGの実機生成](images/wai-cfg-batch-1024.png)
+![Hardware output with FP32 batched CFG](images/wai-cfg-batch-1024.png)
 
-[FP16の同じprompt・seedの実画像](images/wai-fp16-1024.png)も保存しています。目視では全体の漫画調ポートレートを維持し、明白な欠落・単色出力はありません。線・色には差があり、完全な知覚的同等性や全promptでの安定性を示す試験ではありません。
+The [actual FP16 image with the same prompt and seed](images/wai-fp16-1024.png) is also retained. Visual inspection showed the overall manga portrait intact, without obvious missing content or solid-color output. Lines and colors differ; this is not a test of full perceptual equivalence or stability across all prompts.
 
-FP16の1024ではUNet40出力を含む99出力、12,888,576値を確認し、NaN/Infは0でした。
-バッチCFGの1024ではUNet20出力を確認し、NaN/Infは0です。全内部テンソルを検査したという意味ではありません。
-各実行でGPU UNet/Flashの完了witnessと生成後readyを確認しました。witnessはサンプル観測で、GPU全操作数や使用率を示しません。
+For FP16 at 1024, 99 outputs, including 40 UNet outputs, were checked: 12,888,576 values with 0 NaN/Inf.
+For batched CFG at 1024, 20 UNet outputs were checked with 0 NaN/Inf. This does not mean every internal tensor was inspected.
+Every run verified completed GPU UNet/Flash witnesses and a ready state after generation. Witnesses are sampled observations, not total GPU operation counts or utilization.
 
-Direct予約枠は6GiBのままです。1024ピークはFP32逐次5,436,981,248 bytes、FP16逐次5,436,981,248 bytes、FP32バッチ5,869,420,544 bytesでした。
-重みは元からFP16で、中間出力・蓄積にはF32が残ります。FP16演算を有効にしてもメモリは半減しません。
-RSSは共有マッピングを含み得るため、Direct値と足しません。全VRAM使用率・温度は測れていません。
+The Direct reservation remained 6 GiB. Peaks at 1024 were 5,436,981,248 bytes for FP32 sequential, 5,436,981,248 bytes for FP16 sequential, and 5,869,420,544 bytes for FP32 batched CFG.
+Weights were already FP16; intermediate outputs and accumulation still include F32. Enabling FP16 arithmetic does not halve memory usage.
+RSS may include shared mappings and must not be added to Direct usage. Total VRAM utilization and temperature were not measured.
 
-## 再現用コードと証拠
+## Reproduction code and evidence
 
-`tools/build.py --precision fp32` / `--precision fp16`で同じ公開ソースから比較版を作れます。既定はfp32です。バッチ設定は`engine.batched_cfg`です。
-公開フォルダーの再ビルド・SELF検査と、48件のscratch admission検証、実際のfinite検査関数へのNaN/Inf注入試験を通しました。ホスト試験はモデル推論を行いません。
-依存キャッシュを使う再ビルドであり、クリーン環境からの依存一括構築・初回登録は依然として未完了です。
+`tools/build.py --precision fp32` / `--precision fp16` builds comparison versions from the same public source. The default is fp 32. Batching is configured by `engine.batched_cfg`.
+The public-folder rebuild and SELF inspection passed, along with 48 scratch-admission checks and NaN/Inf injection into the actual finite-check function. Host tests do not perform model inference.
+This was a rebuild using a dependency cache. Building all dependencies from a clean environment and first registration remain unverified.
 
-[機械可読の実測値](precision-verification.json) / [公開ソースの再ビルド検証](precision-build-verification.json) / [成功結果の短い動画](media/precision-cfg-verified.mp4)
+[Machine-readable measurements](precision-verification.json) / [Public-source rebuild verification](precision-build-verification.json) / [Short successful-results video](media/precision-cfg-verified.mp4)
 
-動画は実画像・実測ログを表示したWindows画面の振り返り録画です。ライブ生成・HDMI映像ではありません。
-既存FTP/Telnet/WebSrv、FW、システム領域を維持し、検証中のPS5再起動はありません。原ログは非公開領域に保持しています。
+The video is a retrospective recording of the Windows screen displaying actual images and measured logs. It is not live generation or HDMI footage.
+Existing FTP/Telnet/WebSrv, firmware, and system areas were preserved; the PS5 was not restarted during verification. Original logs remain private.

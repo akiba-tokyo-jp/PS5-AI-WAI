@@ -1,60 +1,60 @@
-# 漫画LoRA・7GiB Direct 実機成功記録（2026-10-18 JST）
+# Manga LoRA and 7GiB Direct console success (2026-10-18 JST)
 
-WAI-Illustrious-SDXL v17.0に、imge作「manga | Illustrious Style Lora」を適用した。既存8188/8189と同じモデル名・リクエストで、漫画LoRA強度1.0とmonochromeを標準適用する。
+Applied imge's "manga | Illustrious Style Lora" to WAI-Illustrious-SDXL v17.0. The existing 8188/8189 model/request now defaults to manga LoRA strength 1.0 and monochrome.
 
-256×256 / 20 steps / CFG5 / Euler A / seed20261018。同じprompt/negative_promptで比較した。
-| 条件 | PS5内生成時間 | WindowsでPNG取得まで | GPU報告ピーク | プロセスRSSピーク |
+Compared identical prompt/negative_prompt at 256×256 /20 steps /CFG 5 /Euler A /seed 20261018.
+| Condition | PS5 generation | Windows PNG retrieval | Reported GPU peak | Process RSS peak |
 |---|---:|---:|---:|---:|
-| LoRAなし：WAI初回読み込みあり | 38.187526秒 | 39.219秒 | 4.877GiB | 9.429GiB |
-| LoRAあり：WAI読み込み済み・LoRA初回読み込みあり | 22.828582秒 | 23.578秒 | 5.374GiB | 9.606GiB |
+| No LoRA: initial WAI load included |38.187526 seconds |39.219 seconds |4.877GiB |9.429GiB |
+| LoRA: WAI loaded, initial LoRA load included |22.828582 seconds |23.578 seconds |5.374GiB |9.606GiB |
 
-**初回ロード条件が異なるため、LoRAによる高速化を示す比較ではない。** 最初はGPU側のキャッシュ準備も含み得る。RSSはGPU共有マッピングを含み、CPU専用メモリではない。GPU報告ピークとも合算しない。
+**Different initial-load states prevent claiming a LoRA speedup.** The first run may include GPU cache preparation. RSS may include shared GPU mappings; it is not CPU-only memory and must not be added to the GPU-labelled peak.
 
-2枚ともcompleted、gpu_used=true、PNG全デコード成功。OpenAI互換応答のPNGはネイティブGETのPNGと全バイト一致。漫画LoRAはText Encoder 774/774、UNet 2250/2250、合計3024/3024テンソル適用を確認し、非互換によるskipは0。20回のUNet出力検査でNaN/Infは0。GPUの完了済みUNet/Flash Attention witness、submit/fence完了も確認した。
+Both 2 jobs completed with gpu_used=true and full PNG decode. OpenAI-compatible/native GET PNGs matched byte for byte. Manga LoRA applied 774/774 text-encoder and 2250/2250 UNet tensors: 3024/3024 total, 0 incompatible skips.20 UNet output checks found 0 NaN/Inf. Completed GPU UNet/Flash Attention witnesses and submit/fence completion also passed.
 
-LoRAなしの生成も白黒になったため、カラーから白黒への変化を証明する比較ではない。LoRA適用ログと出力の差を確認した。小画像の目視だけで1024での漫画品質や人物固定を保証しない。
+The no-LoRA image was also monochrome; this does not prove a color-to-monochrome transition. Applied-LoRA logs and output differences were observed. Small-image visual review does not guarantee 1024 manga quality or identity lock.
 
-## メモリの実測
+## Measured memory
 
-Direct data poolは7,516,192,768 bytes（7GiB）、28×256MiB。model manager予算6.75GiB、初期admission余白1GiBを維持。CPU専用1GiBの枠ではない。起動後64MiBのGPU Compute読み戻し一致を確認した。7GiB全域のGPU読み戻し試験ではない。
-LoRA生成後のDirect data使用量5,664,784,384 bytes、同ピーク5,725,995,008 bytes、プール内free 1,851,408,384 bytes。GPU報告ピークにはdriver側も含む。
-CPU heapの生成後mapped 2,367,422,464 bytes、peak mapped 2,536,374,272 bytes、libc fallback 0。CPU heap内部の空きは未取得。
-アプリ自身のAvailableDirectMemorySize queryは成功し、生成後の最大連続spanは2,076,180,480 bytes（約1.934GiB）。全空き容量ではない。query canary一致。
+Direct data pool 7,516,192,768 bytes (7GiB),28×256MiB. Preserved 6.75GiB model-manager budget and 1GiB initial admission reserve; not a dedicated 1GiB CPU pool. Startup 64MiB GPU Compute readback matched, not a readback test of all 7GiB.
+After LoRA generation: Direct live 5,664,784,384 bytes, peak 5,725,995,008, free 1,851,408,384. Reported GPU peak also includes driver-side usage.
+CPU heap: final mapped 2,367,422,464 bytes, peak mapped 2,536,374,272, libc fallback 0. Internal heap free space was unavailable.
+AvailableDirectMemorySize query succeeded; final largest contiguous span 2,076,180,480 bytes (about 1.934GiB), not total free space. Query canaries matched.
 
-## API・運用
+## API and operation
 
-OpenAI互換API8189の既存リクエストにはmanga指定を足していない。native8188では比較用にmanga_strength=0を指定可能。0..1.5の有限値を受理し、既定は1。
-カタログは217枚完了時に安全停止し、通常OS終了で旧nativeアプリを閉じた。旧SELF・旧configを/data/aiとDドライブへ保存。1回だけ新アプリを通常起動し、既存gateway・FTP・Telnet・WebSrv等を維持。FW更新・システム領域への直接書き込み・GPUメモリの手動解放は0。
-2枚の検証後に元のカタログを再開。以後の生成は漫画LoRAが標準適用される。既存画像は再生成していない。切替境界をcatalog側のmanga-style-boundary-20261018.jsonに保存した。
-生成PNGはnative runtimeのoutputと/data/ai/outputに保存した。
-img2img/IP-Adapterは別途ソース・ELF・重みヘッダー調査を完了したが、画像入力APIの接続・PS5参照画像生成はまだ実装/検証していない。
+Existing OpenAI-compatible 8189 requests require no manga field. Native 8188 accepts manga_strength=0 for comparison, finite 0..1.5, default 1.
+Safely stopped the catalog at 217 completed images and normally OS-closed the old native title. Backed up SELF/config under /data/ai and D; normally launched the new app 1 time while retaining gateway/FTP/Telnet/WebSrv.0 firmware updates, direct system writes or manual GPU releases.
+After 2 verification images, resumed the original catalog with manga LoRA now default. Existing images were not regenerated. Recorded the boundary in catalog manga-style-boundary-20261018.json.
+Saved PNGs in native runtime output and /data/ai/output.
+Separate img2img/IP-Adapter source, ELF and weight-header research was complete, but image-input API integration and PS5 reference generation were not yet implemented/verified.
 
-## 重み・再現
+## Weights and reproduction
 
-原作者imge：https://civitai.com/models/1745962?modelVersionId=1976014。作者クレジットを維持し、重み本体は公開GitHubへ同梱しない。
-旧GLoRAをこのWAI専用の通常LoRA rank48/F32へ数学的に変換。SVD・rank切詰めなし。clip_skip=2で未使用のCLIP-L最終層6対象を除き、使用1008層すべてをfloat64基準のサンプル補正と照合した。
-変換済みSHA256：`764e32941b1a6fb4148cc2f700306f36d34c731238c3643249ecc15b29871f68`。
-実機SELF SHA256：`0eaebfeabdebcc81a40af57b6ad210887f5d73f83548f72f1aaf0241765176d3`。
+Original author imge: https://civitai.com/models/1745962?modelVersionId=1976014. Preserve attribution; do not bundle weights in public GitHub.
+Mathematically converted legacy GLoRA to WAI-specific standard LoRA rank 48/F32, without SVD/rank truncation. With clip_skip=2, excluded 6 unused final CLIP-L targets; all 1008 used layers matched sampled float 64 reference corrections.
+Converted SHA 256: `764e32941b1a6fb4148cc2f700306f36d34c731238c3643249ecc15b29871f68`.
+Console SELF SHA 256: `0eaebfeabdebcc81a40af57b6ad210887f5d73f83548f72f1aaf0241765176d3`.
 
-動画はWindowsのAPI操作・実PNG取得のライブ録画。短縮版24秒は待ち時間の一部をカットし、再生速度は変更していない。全体版91秒も保存。PS5のHDMI映像ではない。
+Video records live Windows API operation and PNG retrieval. The 24-second excerpt cuts some waiting without changing playback speed; the full 91-second recording is retained. Neither is PS5 HDMI footage.
 
-旧版へ戻す場合は、その時点のPID/start/app IDとidleを確認して通常OS終了し、退避したSELF/configをハッシュ照合後に戻して通常起動する。実行中ファイルを書き換えず、起動や生成を不明なまま再送しない。
+To roll back, verify current PID/start/app ID and idle state, normally OS-close, restore hash-verified backed-up SELF/config and launch normally. Do not modify running files or repeat ambiguous launches/generations.
 
-## 実画像と録画
+## Images and recordings
 
-![同条件の実機結果](images/manga-verification.png)
+![Matched-condition console outputs](images/manga-verification.png)
 
-[24秒のライブ検証短縮版](media/manga-verification.mp4)。待ち時間を一部省略。
+[24-second live verification excerpt](media/manga-verification.mp4), with some waiting omitted.
 
 ```mermaid
 flowchart LR
-  A[Windows / OpenAI Images互換] --> B[PS5 gateway 8189]
+  A[Windows / OpenAI Images-compatible] --> B[PS5 gateway 8189]
   B --> C[PS5 native API 8188]
   C --> D[WAI v17 + manga LoRA / Direct 7GiB]
   D --> E[Vulkan UNet + TAESDXL]
-  E --> F[実PNGをWindowsへ返す]
+  E --> F[Return actual PNG to Windows]
 ```
 
-## 公開ソースの再ビルド
+## Public-source rebuild
 
-公開用のnative 11翻訳単位・RADV platform・core runnerを再ビルドし、SELF integrity valid、24 constructorと動的import/providerが実機版と一致することを確認した。公開ソースのparser10件・pool26シナリオ・変換代数25件も合格。公開用再ビルドのSELFは実機へ再配備しておらず、実機版と別の識別値として記録する。[再ビルド記録](manga-build-verification.json)。
+Rebuilt 11 native translation units, RADV platform and core runner. SELF integrity passed; 24 constructors and dynamic imports/providers matched the console version. Public-source parser 10, pool 26 scenarios and conversion algebra 25 checks passed. This separately identified public SELF was not redeployed. [Rebuild record](manga-build-verification.json).

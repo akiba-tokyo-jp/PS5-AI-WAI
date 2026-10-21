@@ -1,78 +1,78 @@
-現行版：漫画LoRA強度1を既定適用し、`manga_strength:0`で無効化できます。自動monochromeは既定falseです。OpenAI JSONでも両項目をWAI拡張として受け付けます。ControlNet Canny/OpenPoseは256/1024を実機確認済み：[結果と入力手順](controlnet.md)。
+Current version: manga LoRA strength 1 is enabled by default; disable it with `manga_strength:0`. Automatic monochrome defaults to false. OpenAI JSON accepts both fields as WAI extensions. Canny/OpenPose ControlNet was verified at 256/1024: [Results and input preparation](controlnet.md).
 
-# API仕様
+# API reference
 
-normal/debugとログ容量上限は[ログ設定](logging.md)を参照。OpenAIエンドポイントの仕様は維持しています。
+See [Logging configuration](logging.md) for normal/debug levels and storage limits. OpenAI endpoint behavior is preserved.
 
-両サービスとも認証トークンが必要です。トークンはソースに含めず、起動時に専用ファイルから読み込み、ファイルを削除してメモリ上で保持します。
-同じプライベートIPv4の/24内からのみ接続できます。HTTPのため、LAN外へ転送・ポート開放しないでください。
+Both services require authentication tokens. Tokens are not embedded in source: each process reads a dedicated startup file, removes it and retains the value in memory.
+Connections are restricted to the same private IPv4 /24. This is HTTP; do not forward or expose its ports outside the LAN.
 
-## OpenAI Imagesの互換部分：8189
+## OpenAI Images-compatible subset: 8189
 
-クライアントbase URL: `http://<PS5_IP>:8189/v1`、model: `wai-illustrious-sdxl-v17.0`。
-別CPUプロセスが同じPS5の8188へ1回だけPOSTし、ジョブ完了を待って実PNGを返します。
-Windowsやクラウドへ推論を転送する実装はありません。
+Client base URL: `http://<PS5_IP>:8189/v1`; model: `wai-illustrious-sdxl-v17.0`.
+A separate CPU process sends exactly 1 POST to 8188 on the same PS5, waits for completion and returns the actual PNG.
+Inference is not forwarded to Windows or a cloud service.
 
-| メソッド・パス | 動作 |
+| Method and path | Behavior |
 |---|---|
-| GET `/v1/models` | モデル一覧 |
-| GET `/v1/models/wai-illustrious-sdxl-v17.0` | モデル情報 |
-| POST `/v1/images/generations` | 同期応答。base64 PNGまたは署名付きURL |
-| POST `/v1/images/edits` | multipart画像／任意マスク。対応範囲は[マスク仕様](mask-api.md) |
-| GET `/health` | 自身と同じPS5のバックエンド状態 |
-| GET `/openapi.json` | OpenAPI3.1文書 |
-| GET `/v1/images/{id}.png?expires=…&signature=…` | 返却された画像用署名URL |
+| GET `/v1/models` | List models |
+| GET `/v1/models/wai-illustrious-sdxl-v17.0` | Model information |
+| POST `/v1/images/generations` | Synchronous response: base 64 PNG or signed URL |
+| POST `/v1/images/edits` | Multipart image and optional mask; see [mask support](mask-api.md) |
+| GET `/health` | Gateway and same-PS5 backend status |
+| GET `/openapi.json` | OpenAPI 3.1 document |
+| GET `/v1/images/{id}.png?expires=…&signature=…` | Returned signed image URL |
 
-通常ルートのヘッダーは `Authorization: Bearer <token>`。URLにはAPI秘密トークンを含めません。
-画像URLの署名は画像1枚・最大1時間・サーバー起動セッションに限定します。URL自体を画像へのアクセス権として扱ってください。
-画像URLでもLAN制約は残り、改変・期限切れは401です。
+Normal routes use `Authorization: Bearer <token>`. Never put the API secret token in a URL.
+Image signatures cover 1 image, at most 1 hour and the current server session. Treat the URL itself as image-access authorization.
+Signed image URLs retain LAN restrictions; modified or expired signatures return 401.
 
-| パラメーター | 対応 |
+| Parameter | Support |
 |---|---|
-| prompt | 必須、UTF-8で4096 bytes以下 |
-| model | 上記モデルのみ |
-| n / output_format / stream | 1 / png / falseのみ |
-| size | auto（1024×1024）、または64〜1024・64の倍数のWIDTHxHEIGHT |
-| response_format | b64_json（既定） / url |
-| quality / background | auto または standard / auto または opaque |
-| user / safety_identifier | 256文字以下のメタデータ。モデレーション機能を追加するものではありません |
-| negative_prompt | 拡張、4096 UTF-8 bytes以下 |
-| steps / cfg_scale | 拡張、1〜100（既定8） / 0〜30（既定5） |
-| seed | 拡張、-1または非負signed64-bit整数 |
-| sampler | 拡張、euler / euler_a（既定） / dpm++2m |
+| prompt | Required; at most 4096 UTF-8 bytes |
+| model | Only the model above |
+| n / output_format / stream | Only 1 / png / false |
+| size | auto (1024×1024), or WIDTHxHEIGHT with each side 64–1024 in multiples of 64 |
+| response_format | b64_json (default) / url |
+| quality / background | auto or standard / auto or opaque |
+| user / safety_identifier | Metadata up to 256 characters; does not add moderation |
+| negative_prompt | Extension; at most 4096 UTF-8 bytes |
+| steps / cfg_scale | Extensions: 1–100 (default 8) /0–30 (default 5) |
+| seed | Extension: -1 or a nonnegative signed 64-bit integer |
+| sampler | Extension: euler / euler_a (default) / dpm++2m |
 
-任意項目のnullは既定値を使います。generationsのJSON body上限24KiB。multipartの上限は[マスク仕様](mask-api.md)を参照してください。
-未対応パラメーター・batch・透過出力・JPEG/WebP・streamingは400などで拒否します。マスク付き編集は [仕様](mask-api.md) を参照してください。
-成功は `{"created":...,"data":[{"b64_json":"..."}]}` または`url`です。
-`x-request-id`はアダプターのID、`X-PS5-Native-Job-ID`は実際のネイティブ生成IDです。
-失敗は`error.message/type/param/code`を持つOpenAI形式です。
-同期生成は1件までで、競合は429。同期応答待ちでもhealthに応答します。待機上限30分です。
+Optional null values use defaults. The generations JSON body limit is 24KiB. See [mask API](mask-api.md) for multipart limits.
+Unsupported parameters, batches, transparent output, JPEG/WebP and streaming are rejected with 400 or another error. See the [masked-edit specification](mask-api.md).
+Success returns `{"created":...,"data":[{"b64_json":"..."}]}` or `url`.
+`x-request-id` identifies the adapter request; `X-PS5-Native-Job-ID` identifies the actual native generation.
+Failures use OpenAI-style `error.message/type/param/code` fields.
+Only 1 synchronous generation is accepted; contention returns 429. Health remains responsive while awaiting the result. The wait limit is 30 minutes.
 
-## ネイティブ非同期API：8188
+## Native asynchronous API: 8188
 
-| メソッド・パス | 動作 |
+| Method and path | Behavior |
 |---|---|
-| GET `/health` | model_loaded、GPU状態、backend、実行中・待機中件数 |
-| POST `/api/generate` | prompt / negative_prompt / width / height / steps / cfg_scale / seed / sampler、202とjob_id |
-| GET `/api/jobs/{job_id}` | queued / running / completed / failed、進捗・エラー・画像URL |
-| GET `/api/images/{image_id}` | 実PNGを取得 |
+| GET `/health` | model_loaded, GPU status, backend and running/queued counts |
+| POST `/api/generate` | prompt / negative_prompt / width / height / steps / cfg_scale / seed / sampler; returns 202 and job_id |
+| GET `/api/jobs/{job_id}` | queued / running / completed / failed, progress, error and image URL |
+| GET `/api/images/{image_id}` | Retrieve the actual PNG |
 
-HTTPタイムアウト・切断はネイティブ生成のキャンセルを意味しません。
-IDを取得済みならジョブを確認し、不明なPOSTを自動再送しないでください。
-生成中の接続を閉じた実機試験では、POST1回のまま完了し、別経路でPNGを回収しました。[確認範囲](ip-lifecycle-20261019.md#通信切断後の結果回収)を参照してください。
-通常の同期OpenAIクライアントが受付後・ID受信前に切断した場合、未知のジョブを確実に検索できる現行APIはありません。実機の回収試験では運用者権限で既存の内部対応ログからIDを特定しました。クライアント相関ID／idempotencyの実装は今後の改善候補です。
-[切断・連続6件・通常再起動の検証範囲](operations-recovery-20261019.txt)も参照してください。
-致命的なretained状態はfailed/degraded、新規生成503、終了待ちできないshutdownは409です。
-管理用shutdownはアプリの正常な後処理と同義ではありません。[運用](deployment.md)を参照してください。
+An HTTP timeout or disconnect does not cancel native generation.
+If the ID is known, inspect that job. Never automatically resend a POST whose outcome is unknown.
+In a console test that closed the connection during generation, the 1 POST completed and its PNG was recovered through a separate route. See [verified scope](ip-lifecycle-20261019.md#recovering-results-after-a-disconnect).
+If a normal synchronous OpenAI client disconnects after acceptance but before receiving an ID, the current API cannot reliably discover its unknown job. The console recovery test used operator access to internal correspondence logs to identify it. Client correlation IDs and idempotency are future improvements.
+See [Disconnect, 6 consecutive jobs and normal-restart verification](operations-recovery-20261019.txt).
+Fatal retained states report failed/degraded; new generation returns 503, and shutdown that cannot wait safely returns 409.
+Administrative shutdown does not itself prove normal application cleanup. See [Operation](deployment.md).
 
-## 参照画像とControlNet拡張
+## Reference-image and ControlNet extensions
 
-認証付きnative `POST :8188/api/inputs`へPNG/JPEGを送り、返されたimage_idを使用します。`GET /api/inputs/{id}`で寸法・SHA256・参照数を取得、`DELETE`で未参照入力を削除できます。ジョブが参照中の削除は拒否します。
+Upload PNG/JPEG through authenticated native `POST :8188/api/inputs` and use the returned image_id. `GET /api/inputs/{id}` returns dimensions, SHA 256 and reference count; `DELETE` removes unreferenced inputs. Deletion is refused while a job holds a reference.
 
-OpenAI互換`POST :8189/v1/images/generations`に`controlnet:canny|openpose`、`control_image_id`、`control_strength`（有限0.01..1.5、既定1）を渡します。入力は出力と同じ寸法の完成済みedge/pose mapです。自動OpenPose検出はありません。SDKでは`extra_body`を使います。これらはOpenAI標準ではなくWAI拡張です。
+For OpenAI-compatible `POST :8189/v1/images/generations`, pass `controlnet:canny|openpose`, `control_image_id` and `control_strength` (finite 0.01..1.5, default 1). Input must be a prepared edge/pose map matching output dimensions. Automatic OpenPose detection is not implemented. Use SDK `extra_body`. These are WAI extensions, not OpenAI standard fields.
 
-`init_image_id`と`denoise_strength`はimg2img、`reference_image_id`と`ip_adapter_strength`はIP-Adapter経路です。multipart `POST /v1/images/edits`にも対応します。IP＋漫画LoRA＋OpenPose＋マスクの1024は141.356660秒で完了し、マスク外変更0画素を確認しました。これは20指定／17実行stepsの代表条件で、人物同一性や希望した編集内容の保証ではありません。[IP寿命修正と実測](ip-lifecycle-20261019.md)・[機能別の確認範囲](feature-classification-20261019.md)。
+`init_image_id` / `denoise_strength` select img2img; `reference_image_id` / `ip_adapter_strength` select IP-Adapter. Multipart `POST /v1/images/edits` is also supported. IP + manga LoRA + OpenPose + mask 1024 completed in 141.356660 seconds with 0 changed pixels outside the mask. This representative case requested 20 and executed 17 steps; it does not guarantee identity preservation or the intended edit. [IP lifetime fix and measurements](ip-lifecycle-20261019.md) · [Feature scope](feature-classification-20261019.md).
 
-白黒／透過マスク、白黒soft mask、全編集マスク、Canny併用マスクも代表条件で実機確認しました。柔らかい境界は最後のRGB合成に適用し、拡散中のlatent maskは二値です。通常のWAI checkpointを使う全画面masked img2imgで、専用inpaintingモデルやROIだけの推論ではありません。写真からのOpenPose自動検出、multipartのcontrol_imageファイル、任意の複数LoRA／複数ControlNetは現在提供していません。既存のcontrol_image_idは利用できます。[マスク仕様](mask-api.md)・[従来のマスク実測](masked-inpainting-20261019.md)。
+Representative console cases covered grayscale/alpha masks, grayscale soft masks, full-edit masks and masks with Canny. Soft boundaries apply to final RGB compositing; diffusion latent masks are binary. This is full-frame masked img2img with a normal WAI checkpoint, not a dedicated inpainting model or ROI-only inference. Automatic OpenPose detection from photos, multipart control_image files, arbitrary multiple LoRAs and multiple ControlNets are not provided. Existing control_image_id inputs are supported. [Mask API](mask-api.md) · [Earlier mask measurements](masked-inpainting-20261019.md).
 
-`scripts/Invoke-WaiControlNet.ps1`を使用できます。タイムアウト時に自動再送しないでください。ネイティブjobsの`controlnet_evals`、`controlnet_tensors`、`gpu_controlnet_verified`で実行結果を確認できます。詳細な全フィールドは[OpenAPI文書](openapi.json)を参照してください。
+Use `scripts/Invoke-WaiControlNet.ps1`; do not automatically retry after a timeout. Native jobs report `controlnet_evals`, `controlnet_tensors` and `gpu_controlnet_verified`. See [OpenAPI](openapi.json) for all fields.

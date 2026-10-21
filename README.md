@@ -1,135 +1,135 @@
 # PS5 AI WAI
 
-2026-10-19：**IP-Adapterのメモリ寿命を修正し、漫画LoRA＋IP参照＋OpenPose＋マスク付きimg2imgの1024×1024を141.357秒で完了しました。** 20指定／17実行steps、マスク外変更0画素、OpenAI互換APIとネイティブPNGが一致。Direct9422MiB・FP32・GPUドライバー設定を維持しています。[IPの修正と実測](docs/ip-lifecycle-20261019.md)・[機能別の確認範囲](docs/feature-classification-20261019.md)。参照人物の同一性、指定色、編集の仕上がりは改善対象です。通信切断後の運用者によるPNG回収と、1024／20steps・短文プロンプトの連続6件（124.176〜124.446秒）を確認しました。元の長文カタログの厳密再現、24時間や全パラメーター組合せの保証ではありません。
+2026-10-19: **Fixed IP-Adapter memory lifetimes and completed 1024×1024 manga LoRA + IP reference + OpenPose + masked img2img in 141.357 seconds.** Requested 20 / executed 17 steps; 0 changed pixels outside the mask; OpenAI-compatible and native PNGs matched. Direct 9422MiB, FP32 and GPU driver settings were preserved. [IP fix and measurements](docs/ip-lifecycle-20261019.md) · [Feature verification scope](docs/feature-classification-20261019.md). Reference identity, requested colors and editing quality still need improvement. Operator recovery of PNGs after a disconnect and 6 consecutive 1024/20-step short-prompt jobs (124.176–124.446 seconds) were verified. This does not establish exact reproduction of the original long-prompt catalog, 24-hour operation or all parameter combinations.
 
-[運用・復旧の範囲](docs/operations-recovery-20261019.txt)・[運用の実測値](docs/operations-recovery-20261019-evidence.json)。ID受信前に切断した通常OpenAIクライアントの未知ジョブ検索は未対応で、結果不明のPOSTを自動再送しないでください。
+[Operations and recovery scope](docs/operations-recovery-20261019.txt) · [Operational measurements](docs/operations-recovery-20261019-evidence.json). A standard OpenAI client cannot discover an unknown job after disconnecting before receiving its ID. Do not automatically resend a POST with an unknown outcome.
 
-白黒soft mask、全編集マスク、Canny併用マスクも代表条件の1024を実機確認しました（98.782秒／75.634秒／151.549秒）。部分マスクの領域保持は確認済みですが、赤いスカートへの意味的変更は未達でした。初期状態・機能が異なるため、この3値から高速化率は求めません。
+Representative 1024 console tests also covered grayscale soft masks, full-edit masks and masks with Canny (98.782 / 75.634 / 151.549 seconds). Partial-mask preservation passed, but the requested semantic change to a red skirt was not achieved. Different initial states and features prevent deriving a speedup from these 3 values.
 
-2026-10-19：**マスク付きimg2img／Inpaintingを実機へ反映しました。** 白黒256は63.217秒、透過PNG＋漫画LoRA＋OpenPoseの1024は172.897秒。マスク外のRGBは全画素が元画像と一致し、WindowsのOpenAI互換APIからPNGを取得しました。指定色の変更は未達で、画質合格とはしていません。[検証範囲と制約](docs/masked-inpainting-20261019.md)・[API仕様](docs/mask-api.md)。今後の検証動画は撮影しません。
+2026-10-19: **Deployed masked img2img / inpainting to the console.** Grayscale 256 took 63.217 seconds; alpha PNG + manga LoRA + OpenPose 1024 took 172.897 seconds. Every RGB pixel outside the mask matched the source, and Windows retrieved the PNG through the OpenAI-compatible API. Requested color changes were not achieved, so visual quality was not marked as passing. [Scope and limitations](docs/masked-inpainting-20261019.md) · [API](docs/mask-api.md). No further verification videos will be recorded.
 
-2026-10-19追加測定：**モデル未読み込みからの1024×1024生成は184.026→161.397秒、22.629秒（約12.3%）短縮しました。** 同じWAI＋漫画LoRA＋OpenPose、20stepsで、基準PNGと全バイト一致。アプリ再起動後の各1枚で、OSファイルキャッシュは消去していません。[比較条件と実測](docs/optimization-20261019.md)・[初回生成の成功動画12秒](docs/media/optimization-openpose1024-cold.mp4)。
+Additional measurement, 2026-10-19: **1024×1024 generation from an unloaded model decreased from 184.026 to 161.397 seconds: 22.629 seconds (about 12.3%).** Same WAI + manga LoRA + OpenPose, 20steps; PNGs matched byte for byte. Each observation was 1 image after an app restart; OS file caches were not cleared. [Conditions and measurements](docs/optimization-20261019.md) · [12-second first-generation success video](docs/media/optimization-openpose1024-cold.mp4).
 
-2026-10-19：**CLIPの重複計算削減・UNet共通計算の再利用・ControlNetのCFGバッチ化・メモリ割当を反映しました。** 最終構成はDirect 9422MiB（約9.201GiB）、CPU CLIPの重みグループは16MiB目安です。OpenPose＋漫画LoRA1／20stepsの256初回は124.567→115.815秒。同じプロセスで256→1024の切替132.952秒、同じ1024の繰返し117.600秒、基準PNGと一致しました。132.952秒と117.600秒はconditioning cache条件が異なるため、この2値から改修による高速化率は算出しません。[比較・メモリ・検証範囲](docs/optimization-20261019.md)・[成功動画12秒](docs/media/optimization-openpose1024.mp4)。
+2026-10-19: **Reduced duplicate CLIP work, reused UNet invariants, batched ControlNet CFG and updated memory allocation.** Final Direct pool 9422MiB (about 9.201GiB); CPU CLIP weight groups target 16MiB. First 256 with OpenPose + manga LoRA 1/20steps decreased from 124.567 to 115.815 seconds. In the same process, switching 256→1024 took 132.952 seconds and repeating 1024 took 117.600 seconds, with reference PNG identity. The 2 values, 132.952 and 117.600 seconds, have different conditioning-cache states and are not a speedup comparison. [Comparison, memory and scope](docs/optimization-20261019.md) · [12-second success video](docs/media/optimization-openpose1024.mp4).
 
-2026-10-19：**UNetの工程別計測とログ同期を修正しました。** 同じOpenPose1024初回は194.54→184.03秒、PNG完全一致。pool/startupのfsync合計は12.73→0.33秒でした。各1枚の観測です。[工程別実測・条件・制約](docs/unet-profiling.md)を参照してください。 [実API検証の成功動画12秒](docs/media/controlnet-openpose1024-logsync.mp4)。
+2026-10-19: **Fixed UNet phase measurements and log synchronization.** The same first OpenPose 1024 request decreased from 194.54 to 184.03 seconds with identical PNGs. Combined pool/startup fsync time decreased from 12.73 to 0.33 seconds. Each condition was observed 1 time. [Phase timings, conditions and limitations](docs/unet-profiling.md) · [12-second API success video](docs/media/controlnet-openpose1024-logsync.mp4).
 
-BGRAの描画とVideoOut形式を揃え、赤紫になる表示色を修正して実機へ反映しました。TVの配色はユーザーが「色は直りました」と確認済みです。ホームは画像ファイルが更新済みでも旧キャッシュ表示が続いており、表示更新成功とは扱いません。
+Aligned BGRA rendering with the VideoOut format and deployed the fix for the magenta display tint. The user confirmed that TV colors were corrected. The home screen still showed its old cached icon despite updated image files; icon display refresh is not considered verified.
 
-2026-10-18：**Canny / OpenPose ControlNetの256・1024生成とOpenAI互換APIからのPNG取得をPS5実機で確認しました。** Direct9GiB・512MiB単位、CPU CLIP一時重みの共有プール利用に対応しています。ホーム用・状態画面内の画像ファイルをユーザー添付キャラクターへ更新しました。ホームの表示は旧アイコンのままです。
-[実測値・制約・モデル配置](docs/controlnet.md)・[API仕様](docs/api.md)。
+2026-10-18: **Verified Canny / OpenPose ControlNet generation at 256 and 1024 and PNG retrieval through the OpenAI-compatible API on PS5.** Supports a 9GiB Direct pool in 512MiB regions and shared-pool temporary CPU CLIP weights. Home-screen and status-display image files were updated to the user-provided character. The home screen still displayed the old icon.
+[Measurements, limitations and model placement](docs/controlnet.md) · [API](docs/api.md).
 
-| 1024×1024 /20steps /漫画LoRA1 | PS5内生成 |
+| 1024×1024 /20steps /manga LoRA 1 | PS5 generation |
 |---|---:|
-| Canny | 162.56秒 |
-| OpenPose | 329.68秒 |
+| Canny | 162.56 seconds |
+| OpenPose | 329.68 seconds |
 
-この表は2026-10-18の機能検証各1枚です。OpenPose遅延の一部はログ同期で説明できましたが、GPU演算・内部待ちの分離と初回の断片化対策は残っています。最新の同条件比較は上の工程別記録を参照してください。
+This table contains 1 functional observation per condition from 2026-10-18. Log synchronization explains part of the OpenPose delay, but separating GPU compute from internal waits and addressing first-run fragmentation remain open. See the phase records above for the latest matched-condition comparison.
 
-![PS5で生成したOpenPose1024](docs/images/controlnet-openpose1024.png)
+![OpenPose 1024 generated on PS5](docs/images/controlnet-openpose1024.png)
 
-[Canny成功動画12秒](docs/media/controlnet-canny1024.mp4)・[OpenPose成功動画12秒](docs/media/controlnet-openpose1024.mp4)。実Windows操作録画の完了部分で、12秒が生成時間という意味ではありません。
+[12-second Canny success video](docs/media/controlnet-canny1024.mp4) · [12-second OpenPose success video](docs/media/controlnet-openpose1024.mp4). These show completion excerpts from actual Windows operation; 12 seconds is not the generation time.
 
 ```mermaid
 flowchart LR
-  W[Windows: OpenAI SDK / PowerShell] --> G[PS5:8189 Images互換ゲートウェイ]
-  G --> A[同じPS5:8188 非同期ジョブ]
-  A --> C[CPU CLIP:共有プールの一時重み]
+  W[Windows: OpenAI SDK / PowerShell] --> G[PS5:8189 Images-compatible gateway]
+  G --> A[Same PS5:8188 async jobs]
+  A --> C[CPU CLIP: shared-pool temporary weights]
   C --> V[Vulkan: ControlNet + UNet + TAESDXL]
-  V --> P[PS5保存PNG]
+  V --> P[PNG stored on PS5]
   P --> G
   G --> W
 ```
 
-従来の漫画LoRA256検証は[過去の記録](docs/manga.md)を参照してください。現行版も漫画LoRA強度1を既定とし、自動monochromeは既定で無効です。
+Earlier manga LoRA 256 tests are in the [historical record](docs/manga.md). The current default manga LoRA strength remains 1; automatic monochrome is disabled by default.
 
-状態画面を濃紺とミントのカード表示へ更新しました。滑らかな文字・進捗・取得できるメモリ値・ログをCPUで描画します。
-[画面と実機検証](docs/dashboard.md)・[16秒の成功記録](docs/media/dashboard-success.mp4)を参照してください。取得できない使用率や温度は表示しません。
+Updated the status screen to navy and mint cards. CPU rendering displays smooth text, progress, available memory measurements and logs.
+[Dashboard and console verification](docs/dashboard.md) · [16-second success recording](docs/media/dashboard-success.mp4). Unavailable utilization and temperature measurements are omitted.
 
-2026-10-18：通常／デバッグのログを分離し、主要な継続ログを合計64MiBへ制限しました。
-WAI768×1024・20stepsは初回92.47秒、読み込み済み57.06秒で同一PNGを確認。
-続く別プロンプト8枚はPS5内72.34～72.42秒。条件・cache差・実機証拠は[ログと速度改善](docs/logging.md)を参照。
-その後も生成を休止せず、連続6枚を70.62～70.69秒で確認しました。4枚目以降の遅延はこの6枚では再発していません。
-
-<p align="center">
-  <img src="assets/sce_sys/icon0.png" width="160" alt="ユーザー添付キャラクターのアプリアイコン">
-</p>
-
-<p align="center"><strong>PS5のGPUでWAIを生成。WindowsからHTTPでPNGを取得。</strong></p>
-
-脱獄済みPS5のネイティブアプリとして **WAI-Illustrious-SDXL v17.0** を実行する開発者向けプロジェクトです。
-`stable-diffusion.cpp / GGML → Vulkan → PS5向けRADV / AGC` を接続し、画像生成APIとテレビ上の状態表示を実装しました。
-Windowsはビルド・転送・APIクライアントを担当します。推論はPS5本体で実行します。
-
-**FW 12.40でGPU生成とWindowsからのPNG取得を確認済みです。** 漫画LoRAとControlNetを含む1024×1024まで確認しました。
-実験的な移植です。他のFW、本体、起動環境での動作は未検証です。
-
-![処理の構成図](docs/images/architecture.svg)
-
-![新しい状態画面のデザイン例](docs/images/dashboard-colour-preview.png)
-
-上図は同じ描画コードをWindowsで実行した仮データ・添付キャラクターのプレビューです。PS5のHDMIスクリーンショットではありません。
-実機では取得できる項目だけを表示するため、カード数や数値は異なります。
-
-## 実際に生成した画像
+2026-10-18: Separated normal/debug logging and limited primary continuous logs to a combined 64MiB.
+WAI 768×1024/20steps took 92.47 seconds initially and 57.06 seconds with the model loaded, with identical PNGs.
+The following 8 different-prompt images took 72.34–72.42 seconds on PS5. See [Logging and performance](docs/logging.md) for conditions, cache differences and console evidence.
+Without pausing generation, another 6 consecutive images completed in 70.62–70.69 seconds. The slowdown after image 4 did not recur in these 6 observations.
 
 <p align="center">
-  <img src="docs/images/wai-1024.png" width="480" alt="PS5実機でWAI v17を使い生成した漫画調の女の子。以前の生成検証画像。">
+  <img src="assets/sce_sys/icon0.png" width="160" alt="App icon using the user-provided character">
 </p>
 
-WAI v17.0 / 1024×1024 / Euler ancestral / 20 steps / CFG 5 / seed 135792。
-CPU CLIP、GPU UNet・Flash Attention、TAESDXLで復号しました。フルVAEと同一の画質という意味ではありません。
+<p align="center"><strong>Generate WAI images on the PS5 GPU. Retrieve PNGs over HTTP from Windows.</strong></p>
 
-[![成功検証の画面](docs/images/verification.png)](docs/media/verified-results.mp4)
+A developer-oriented project running **WAI-Illustrious-SDXL v17.0** as a native application on a jailbroken PS5.
+Connects `stable-diffusion.cpp / GGML → Vulkan → PS5 RADV / AGC`, with an image-generation API and TV status display.
+Windows handles builds, transfers and API requests. Model inference runs on the PS5 itself.
 
-**[25秒の成功結果動画を見る](docs/media/verified-results.mp4)** — 実PNGと実測ログを表示したWindows画面の振り返り録画です。
-ライブ生成中の映像・PS5のHDMIキャプチャではありません。GitHubでプレビューできない場合は動画ページからダウンロードできます。
+**GPU generation and Windows PNG retrieval are verified on FW 12.40.** Tests cover up to 1024×1024, including manga LoRA and ControlNet.
+This is an experimental port. Other firmware, consoles and launch environments are untested.
 
-## LoRA導入前の性能改善
+![Processing architecture](docs/images/architecture.svg)
 
-20 stepsのCFGをbatch2にまとめ、UNet呼び出しを40回から20回へ減らしました。採用設定は**FP32演算 + batched CFG**です。
+![New status-screen design preview](docs/images/dashboard-colour-preview.png)
 
-| 読み込み済み・同条件の繰り返し | 従来FP32 | CFGバッチ化後 |
+The preview above runs the same rendering code on Windows with synthetic data and the supplied character. It is not a PS5 HDMI screenshot.
+The console displays only available measurements, so its card count and values may differ.
+
+## Generated images
+
+<p align="center">
+  <img src="docs/images/wai-1024.png" width="480" alt="Manga-style girl generated with WAI v17 on PS5 during an earlier generation test.">
+</p>
+
+WAI v17.0 / 1024×1024 / Euler ancestral / 20 steps / CFG 5 / seed 135792.
+Used CPU CLIP, GPU UNet and Flash Attention, then TAESDXL decoding. This does not imply full-VAE image quality.
+
+[![Successful verification screen](docs/images/verification.png)](docs/media/verified-results.mp4)
+
+**[Watch the 25-second results video](docs/media/verified-results.mp4)** — a retrospective Windows recording displaying actual PNGs and measured logs.
+It is not live-generation footage or PS5 HDMI capture. If GitHub cannot preview it, download it from the video page.
+
+## Performance improvements before LoRA integration
+
+Batched 20-step CFG with batch 2, reducing UNet calls from 40 to 20. The adopted configuration is **FP32 computation + batched CFG**.
+
+| Model loaded, repeated matched conditions | Previous FP32 | Batched CFG |
 |---|---:|---:|
-| 256×256 / 20 steps | 35.44秒 | **14.62秒** |
-| 1024×1024 / 20 steps | 84.09秒 | **79.27秒** |
+| 256×256 / 20 steps | 35.44 seconds | **14.62 seconds** |
+| 1024×1024 / 20 steps | 84.09 seconds | **79.27 seconds** |
 
-256のPNGは元版と完全一致。1024も取得・目視・NaN/Inf検査を完了しました。6GiBのDirect枠を維持しています。
-FP16は物理機能と`fp16: 1`、実GPU読み戻し、WAI1024生成まで確認しましたが、この構成では遅く、既定には採用していません。
-初回・読み込み済みを分けた値と限界は[FP16/CFG比較](docs/precision.md)、[短い検証動画](docs/media/precision-cfg-verified.mp4)をご覧ください。
+The 256 PNG matched the original byte for byte. The 1024 PNG passed retrieval, visual review and NaN/Inf checks. The 6GiB Direct reservation was preserved.
+FP16 physical capabilities, `fp16: 1`, actual GPU readback and WAI 1024 generation were verified, but this configuration was slower and is not the default.
+See the [FP16/CFG comparison](docs/precision.md) and [short verification video](docs/media/precision-cfg-verified.mp4) for separate first-run/warm measurements and limitations.
 
-[![FP16・CFGバッチ化の実測比較](docs/images/precision-comparison.png)](docs/media/precision-cfg-verified.mp4)
+[![Measured FP16 and CFG batching comparison](docs/images/precision-comparison.png)](docs/media/precision-cfg-verified.mp4)
 
-## 前版の確認記録
+## Earlier verification
 
 
-2026-10-18 JST、同じネイティブプロセスで実施しました。時間はモデル読込・推論・復号を含むアプリ側の時間と、Windowsが応答を受け取るまでの時間です。
+Performed in one native process on 2026-10-18 JST. Times cover model loading, inference and decoding inside the app, and the Windows wait until the response arrived.
 
-| 画像サイズ / steps | モデルの状態 | PS5生成 | WindowsでPNG取得まで |
+| Image size / steps | Model state | PS5 generation | Windows PNG retrieval |
 |---|---|---:|---:|
-| 256×256 / 8 | 初回読込を含む | 43.23秒 | 44.52秒 |
-| 1024×1024 / 20 | 読込済み | **91.65秒** | **93.09秒** |
+| 256×256 / 8 | Including initial load | 43.23 seconds | 44.52 seconds |
+| 1024×1024 / 20 | Loaded | **91.65 seconds** | **93.09 seconds** |
 
-過去の同プロセス・同条件比較では1024×1024 / 8 stepsが初回65.03秒、読込済み34.12秒でした。
-別の生成設定・ソフトウェア版での記録なので、上の20 stepsと直接の速度比は求めていません。
-他PCとの完全同条件の比較は未実施です。
+An earlier matched-condition test in the same process measured 1024×1024/8steps at 65.03 seconds initially and 34.12 seconds warm.
+Those records used different generation settings/software, so no direct speed ratio against the 20-step measurements above is derived.
+An exactly matched comparison against another PC has not been performed.
 
-- 起動時に **64MiBのGPU Compute結果をCPUへ読み戻して照合**。予約した6GiB全域を検査したものではありません。
-- 画像生成中に完了済みUNet重み演算とFlash Attentionをサンプル観測。1024のカウンター差分はdispatch 138,826、submit 29,518、fence完了29,518です。GPU使用率の測定値ではありません。
-- Directデータプール **6GiB**、1024生成時の所有データプールピーク約5.06GiB。プロセスpeak RSS約8.38GiBは共有マッピングを含み得るため合算しません。
-- ネイティブAPIのPNG、OpenAI応答、PowerShellで取得したPNGがSHA256で一致しました。
-- 生成後は両APIがreadyに復帰。既存FTP・Telnet・WebSrvなどを維持し、検証のためのFW更新・システム領域への書き込みはありません。
+- Startup **GPU Compute readback verifies 64MiB against CPU results**. It does not test the entire reserved 6GiB.
+- Sampled completed UNet weight computation and Flash Attention during generation. The 1024 counter deltas were 138,826 dispatches, 29,518 submissions and 29,518 completed fences. These are not GPU-utilization measurements.
+- **6GiB** Direct data pool; owned-pool peak about 5.06GiB during 1024 generation. Process peak RSS about 8.38GiB may include shared mappings and must not be added to it.
+- Native API, OpenAI response and PowerShell PNG SHA 256 values matched.
+- Both APIs returned to ready after generation. FTP, Telnet and WebSrv were preserved; verification did not update firmware or write system areas.
 
-詳細な数値と限界は **[検証記録](docs/verification.md)**、機械可読値は [verification.json](docs/verification.json) にあります。
-この公開版はソースと依存ライブラリを用いた再ビルドを対象とします。依存ライブラリ一式をゼロから再現する手順と初回のアプリ登録は、まだ汎用化されていません。
+Detailed measurements and limitations are in the **[verification record](docs/verification.md)**; machine-readable values are in [verification.json](docs/verification.json).
+This source release supports rebuilding with reviewed dependencies. Reproducing every dependency from scratch and registering an app for the first time are not yet generalized.
 
-## Windowsから使う
+## Using it from Windows
 
-PS5側のネイティブアプリ・APIが既に起動している環境で使用します。
-OpenAI互換アダプターはPS5の別プロセス、ポート8189です。既存WebSrvの8080とネイティブ非同期APIの8188を維持します。
+Requires the native PS5 application and APIs to be running already.
+The OpenAI-compatible adapter is a separate PS5 process on 8189. Existing WebSrv 8080 and native async API 8188 remain in place.
 
 ```powershell
-# PS5のプライベートIPv4と、別途作成したトークンファイルを指定
+# Set your PS5 private IPv4 and a separately created token file
 .\scripts\Invoke-WaiOpenAI.ps1 `
   -BaseUrl 'http://192.168.1.100:8189/v1' `
   -TokenFile 'D:\ps5-private\api-token' `
@@ -138,7 +138,7 @@ OpenAI互換アダプターはPS5の別プロセス、ポート8189です。既�
   -OutputDirectory 'D:\PS5-AI\output'
 ```
 
-モデル一覧だけを確認する場合は `-ListModels` を付けます。推論は発生しません。
+Add `-ListModels` to inspect models without running inference.
 
 ```python
 import base64
@@ -148,7 +148,7 @@ from openai import OpenAI, DefaultHttpxClient
 client = OpenAI(
     base_url="http://192.168.1.100:8189/v1",
     api_key=Path("D:/ps5-private/api-token").read_text().strip(),
-    max_retries=0,  # タイムアウト後の重複生成を避ける
+    max_retries=0,  # Avoid duplicate generation after a timeout
     timeout=1800,
     http_client=DefaultHttpxClient(trust_env=False),
 )
@@ -162,43 +162,43 @@ Path("wai.png").write_bytes(base64.b64decode(image.data[0].b64_json, validate=Tr
 client.close()
 ```
 
-対応範囲は **OpenAI Images APIの生成機能の一部**です。PNG・1枚・非ストリーミングに対応します。
-img2img、IP-Adapter、マスク付きimages/edits、Canny/OpenPoseの代表条件は1024までGPU生成とPNG取得を確認しました。IP＋漫画LoRA＋OpenPose＋マスクの併用も確認済みです。参照人物の同一性、指定色、編集画質は改善対象です。柔らかいマスクは最終RGB合成に適用し、拡散中のマスクは二値です。複数枚、透過出力、JPEG/WebP出力、ComfyUIやA1111のAPIは未対応です。[機能別の範囲](docs/feature-classification-20261019.md)を参照してください。
-詳しくは [API仕様](docs/api.md) と [OpenAPI 3.1](docs/openapi.json) を参照してください。
+Supports **part of the OpenAI Images generation API**: 1 PNG, without streaming.
+Representative img2img, IP-Adapter, masked images/edits and Canny/OpenPose cases passed GPU generation and PNG retrieval up to 1024. Combined IP + manga LoRA + OpenPose + masking also passed. Reference identity, requested colors and editing quality need improvement. Soft masks apply to final RGB compositing; diffusion masks are binary. Multiple outputs, transparent output, JPEG/WebP output and ComfyUI/A1111 APIs are unsupported. See [feature scope](docs/feature-classification-20261019.md).
+See the [API](docs/api.md) and [OpenAPI 3.1](docs/openapi.json).
 
-## 実装とビルド
+## Implementation and builds
 
-| 場所 | 内容 |
+| Location | Contents |
 |---|---|
-| [`native/app`](native/app) | ネイティブ起動、GPUゲート、Directプール、エンジン接続、非同期API、上限付きログ |
-| [`native/runtime`](native/runtime) | Directスレッドスタック、C++割当、TLS終了処理 |
-| [`native/ui`](native/ui) | VideoOutの状態画面。時計・heartbeat・取得できたメモリ値・ログを表示 |
-| [`native/gateway`](native/gateway) | 同じPS5の8188へ転送するCPU専用OpenAIアダプター |
-| [`native/link`](native/link) | ネイティブCRT、公開APIスタブ、リンカー設定、互換関数 |
-| [`patches`](patches) | SD/GGML・RADVの対応ソースと変更点 |
-| [`tools`](tools) / [`build-profiles`](build-profiles) | パスを設定できるビルドと依存ライブラリ照合 |
-| [`scripts`](scripts) / [`tests`](tests) | PowerShellクライアントと推論を行わないホスト試験 |
+| [`native/app`](native/app) | Native launch, GPU checks, Direct pool, engine integration, async API, bounded logging |
+| [`native/runtime`](native/runtime) | Direct-memory thread stacks, C++ allocation, TLS teardown |
+| [`native/ui`](native/ui) | VideoOut status screen: clock, heartbeat, available memory measurements and logs |
+| [`native/gateway`](native/gateway) | CPU-only OpenAI adapter forwarding to 8188 on the same PS5 |
+| [`native/link`](native/link) | Native CRT, public API stubs, linker configuration and compatibility functions |
+| [`patches`](patches) | SD/GGML and RADV sources and modifications |
+| [`tools`](tools) / [`build-profiles`](build-profiles) | Configurable build paths and dependency verification |
+| [`scripts`](scripts) / [`tests`](tests) | PowerShell clients and host tests without model inference |
 
-**[ビルド手順・再現性の範囲](docs/build.md)** → **[配置と運用](docs/deployment.md)** → **[モデルとライセンス](docs/models.md)**
+**[Build and reproducibility scope](docs/build.md)** → **[Deployment and operation](docs/deployment.md)** → **[Models and licenses](docs/models.md)**
 
-主要な継続ログは合計64MiB上限・各2世代で保持し、高頻度ログと大容量データ領域を分けます。
-致命的エラー時はAPIへfailed/degradedを通知し、新規生成を503で拒否します。
-不明な状態のGPUメモリを自動解放したり、生成POSTを自動再送したりする実装はありません。
+Primary continuous logs retain 2 generations within a combined 64MiB limit, separate from bulk data storage.
+Fatal errors set API failed/degraded status and reject new generation with 503.
+Unknown GPU resources are not automatically freed, and generation POSTs are not automatically retried.
 
-新しい画面の表示完了とheartbeat更新は実機APIで確認済みです。新デザインのテレビ上の配色・文字切れと、ホーム画面のアイコンキャッシュ更新は別途目視確認が必要です。
-取得できない使用率・温度などの項目は表示しません。
+Console APIs verified screen presentation and heartbeat updates. TV colors/text clipping and home-screen icon-cache refresh still require separate visual checks.
+Unavailable utilization and temperature fields are omitted.
 
-## クレジットとライセンス
+## Credits and licensing
 
-本プロジェクトは既存のオープンソース実装を移植・接続したものです。画像モデルやVulkanドライバーを独自開発したという意味での「オリジナル」ではありません。
+This project ports and integrates existing open-source implementations. It does not claim original authorship of the image model or Vulkan driver.
 
-- [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp) / GGML — 画像推論、MIT。
-- [PS5_Vulkan](https://github.com/mihawk-99/PS5_Vulkan) / [PS5_Mesa](https://github.com/mihawk-99/PS5_Mesa) — PS5向けGPU実装、ネイティブツール、RADV。各ソースのGPL / MIT等を維持。
-- [PS5 Payload SDK](https://github.com/ps5-payload-dev/sdk) / [PS5_PayloadSDK fork](https://github.com/mihawk-99/PS5_PayloadSDK) — 公開SDKとプラットフォーム実装。
-- [cobanov/PS5LM](https://github.com/cobanov/PS5LM)、[mansanitizer/psllama](https://github.com/mansanitizer/psllama) — 実績のあるネイティブ起動・メモリ・画面処理の比較、参考。
-- [ps5-payload-dev/websrv](https://github.com/ps5-payload-dev/websrv) — 既存のデプロイ・起動経路の参考。
-- [WAI0731 / WAI-Illustrious-SDXL](https://civitai.com/models/827184?modelVersionId=2883731) / [TAESD](https://github.com/madebyollin/taesd) — モデルは別途取得。重みは本リポジトリに含めません。
+- [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp) / GGML — image inference, MIT.
+- [PS5_Vulkan](https://github.com/mihawk-99/PS5_Vulkan) / [PS5_Mesa](https://github.com/mihawk-99/PS5_Mesa) — PS5 GPU implementation, native tooling and RADV. Preserve each source's GPL/MIT and other notices.
+- [PS5 Payload SDK](https://github.com/ps5-payload-dev/sdk) / [PS5_PayloadSDK fork](https://github.com/mihawk-99/PS5_PayloadSDK) — public SDK and platform implementation.
+- [cobanov/PS5LM](https://github.com/cobanov/PS5LM), [mansanitizer/psllama](https://github.com/mansanitizer/psllama) — references and comparisons for proven native launch, memory and display handling.
+- [ps5-payload-dev/websrv](https://github.com/ps5-payload-dev/websrv) — reference for the existing deployment and launch route.
+- [WAI0731 / WAI-Illustrious-SDXL](https://civitai.com/models/827184?modelVersionId=2883731) / [TAESD](https://github.com/madebyollin/taesd) — obtain models separately; weights are not included in this repository.
 
-統合アプリのライセンスは **GPL-3.0-or-later**。MIT等のファイル単位の表記と著作権表示を保持します。
-モデルの利用条件はコードのライセンスと別です。[第三者ライセンス](THIRD_PARTY_NOTICES.md)を確認してください。
-Sony公式SDK、FW、鍵、Jailbreak exploit、認証トークン、個人用ログは配布しません。
+The integrated application is licensed under **GPL-3.0-or-later**. Preserve file-level MIT and other licenses and copyright notices.
+Model terms are separate from the code license. See [Third-party notices](THIRD_PARTY_NOTICES.md).
+No official Sony SDK, firmware, keys, jailbreak exploits, authentication tokens or personal logs are distributed.

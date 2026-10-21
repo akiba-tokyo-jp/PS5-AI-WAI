@@ -11,12 +11,19 @@
       "validation_scope": "Sanitized successful runtime evidence, current operational documentation, or portable checkout attributes; no new model inference."
     },
     {
+      "file": "AGENTS.md",
+      "published_bytes": 475,
+      "published_sha256": "e58cbec7f1f51cfb5fa68302fb796295a8b225b0cd84152236cf2595b4773f56",
+      "identical_to_tested_input": false,
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical."
+    },
+    {
       "file": "README.md",
       "sha256": "ec663425db44c42dbcbb509350b2242eaf4da866a5c8d9a5344b7d23b43d79df",
-      "published_sha256": "ec663425db44c42dbcbb509350b2242eaf4da866a5c8d9a5344b7d23b43d79df",
-      "published_bytes": 17535,
+      "published_sha256": "866c8b75d3ac1ad16756c41e97e822853fdf1a98cc0c6fae4d66dfe2bc48ef34",
+      "published_bytes": 16332,
       "identical_to_tested_input": false,
-      "validation_scope": "Sanitized authored V18 success/coverage documentation; actual saved PS5 results, source/build checks, portable auth examples and relative links reviewed. Documentation is not an executable inference input.",
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical.",
       "bytes": 17535,
       "normalization_or_provider_update": false
     },
@@ -52,10 +59,10 @@
     {
       "file": "docs/api.md",
       "sha256": "de3068f0893134849f16be8427725432aa630f81440d45800fee831502c394ac",
-      "published_sha256": "de3068f0893134849f16be8427725432aa630f81440d45800fee831502c394ac",
-      "published_bytes": 7373,
+      "published_sha256": "6cb2acd54b265f192bdf27476bcf08fb38b3e44104a044e48fa1f6cbb18e73ae",
+      "published_bytes": 6742,
       "identical_to_tested_input": false,
-      "validation_scope": "Sanitized authored V18 success/coverage documentation; actual saved PS5 results, source/build checks, portable auth examples and relative links reviewed. Documentation is not an executable inference input.",
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical.",
       "bytes": 7373,
       "normalization_or_provider_update": false
     },
@@ -64,27 +71,41 @@
       "sha256": "b1e29f5581730e1896261166d4e452df3f44124e15037f134a974cbb12f92a49",
       "identical_to_tested_input": false,
       "normalization_or_provider_update": true,
-      "published_sha256": "06e4c30a172e66830ce5eb7a7feb6213f4ca79dd89176121d64d9443af5d7492",
-      "published_bytes": 12410,
-      "validation_scope": "Sanitized successful runtime evidence, current operational documentation, or portable checkout attributes; no new model inference."
+      "published_sha256": "ae15b166fea4bfe57552623d17ec171a47874a4dabafb59a3b4caac5c76590a9",
+      "published_bytes": 10953,
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical."
     },
     {
       "file": "docs/controlnet.md",
       "sha256": "97d1d6f5577c6c0186448912d17a1aa7bb51981d560e737a6f81fc487eb1881e",
-      "published_sha256": "97d1d6f5577c6c0186448912d17a1aa7bb51981d560e737a6f81fc487eb1881e",
-      "published_bytes": 7931,
+      "published_sha256": "0f9365119266cc6147fab60ef7fe146ad90619a6b3cc6e00f8cd06c14c75433d",
+      "published_bytes": 7158,
       "identical_to_tested_input": false,
-      "validation_scope": "Sanitized successful runtime evidence, current operational documentation, or portable checkout attributes; no new model inference."
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical."
+    },
+    {
+      "file": "docs/dashboard.md",
+      "published_bytes": 5183,
+      "published_sha256": "c74ba34ae7c5643ffcec0ab948c02055bf467510b1d4859a27449cd4fbcd1da2",
+      "identical_to_tested_input": false,
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical."
+    },
+    {
+      "file": "docs/deployment.md",
+      "published_bytes": 4745,
+      "published_sha256": "24b72ed82c6067761389f342f821b8b268d8ef0c1ad7fc1a723071f2913954a5",
+      "identical_to_tested_input": false,
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical."
     },
     {
       "file": "docs/feature-classification-20261019.md",
       "sha256": "8a3848bd3ab62e7b1f2ca1696296815c776576d552465169307a6cbc937825ad",
       "bytes": 18950,
-      "published_sha256": "9d92be6eedc11cd1691b2c23ed684ceec878cd0f171f95e24ce36be2cf82bf6c",
-      "published_bytes": 15940,
+      "published_sha256": "2464055be3365d2cd6182130f1b6f8d7e2a7aafdf03191a5a11af1725e1061c0",
+      "published_bytes": 13512,
       "identical_to_tested_input": false,
       "normalization_or_provider_update": true,
-      "validation_scope": "Sanitized authored V18 success/coverage documentation; actual saved PS5 results, source/build checks, portable auth examples and relative links reviewed. Documentation is not an executable inference input."
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical."
     },
     {
       "file": "docs/ip-lifecycle-20261019-evidence.json",
@@ -100,11 +121,25 @@
       "file": "docs/ip-lifecycle-20261019.md",
       "sha256": "53167d79692b78791ff8cbdc2ed93bbeedabe717e3995483b840fb26af7ca212",
       "bytes": 9708,
-      "published_sha256": "60205e50f46f66a91f6d95f408a277542e6a1a3e09fa996ef3a835cdbecc492a",
-      "published_bytes": 12532,
+      "published_sha256": "403416964d6aad58fb1ddaa769786dbeb91d1ff7757b71b83093a559c4de85bf",
+      "published_bytes": 9652,
       "identical_to_tested_input": false,
       "normalization_or_provider_update": true,
-      "validation_scope": "Sanitized authored V18 success/coverage documentation; actual saved PS5 results, source/build checks, portable auth examples and relative links reviewed. Documentation is not an executable inference input."
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical."
+    },
+    {
+      "file": "docs/logging.md",
+      "published_bytes": 6806,
+      "published_sha256": "2b3937efd8c90a3a1482632e2905ddfd0fa81a512c312b893fc84ae256126e52",
+      "identical_to_tested_input": false,
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical."
+    },
+    {
+      "file": "docs/manga.md",
+      "published_bytes": 4863,
+      "published_sha256": "c48a1a49067294b2a256f127c6306caac9ba60624a0660f3c96aeac324ec4f4f",
+      "identical_to_tested_input": false,
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical."
     },
     {
       "file": "docs/mask-api.md",
@@ -127,10 +162,10 @@
     {
       "file": "docs/masked-inpainting-20261019.md",
       "sha256": "3d8a3619438ea835b427f3c580f1ee1d7b1b5b41871dc6511b1a326b2a681bf4",
-      "published_sha256": "3d8a3619438ea835b427f3c580f1ee1d7b1b5b41871dc6511b1a326b2a681bf4",
-      "published_bytes": 3832,
+      "published_sha256": "0af879d50ab5dd6aa72f7a8de696e0312a28cb5ad7b37222cd112fc318bd0923",
+      "published_bytes": 3196,
       "identical_to_tested_input": false,
-      "validation_scope": "Sanitized actual PS5 mask256 and mask1024 observations, including the unachieved requested color; no new inference."
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical."
     },
     {
       "file": "docs/media/optimization-openpose1024-cold.mp4",
@@ -147,6 +182,13 @@
       "published_bytes": 67698,
       "identical_to_tested_input": false,
       "validation_scope": "Sanitized successful runtime evidence, current operational documentation, or portable checkout attributes; no new model inference."
+    },
+    {
+      "file": "docs/models.md",
+      "published_bytes": 1761,
+      "published_sha256": "c272bbb0bce46a954a0f5628130108cfe27354416e3b5955f8c69d30af2f200c",
+      "identical_to_tested_input": false,
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical."
     },
     {
       "file": "docs/openapi.json",
@@ -172,11 +214,11 @@
       "file": "docs/operations-recovery-20261019.txt",
       "sha256": "511e8eb2023df0abee061dbd3b1e6a9080c4d9464abdd11ba56a64a11dc3b1c5",
       "bytes": 3619,
-      "published_sha256": "a3d108a86a8882bc8cf04d7c76c41b3ab97e4a65b7d67c073150e421cda654ae",
-      "published_bytes": 3587,
+      "published_sha256": "06f49a512b67da91d9a3bdfdd6068ba78e05a929ca8829d07ca73516d89988c6",
+      "published_bytes": 2753,
       "identical_to_tested_input": false,
       "normalization_or_provider_update": true,
-      "validation_scope": "Sanitized authored V18 success/coverage documentation; actual saved PS5 results, source/build checks, portable auth examples and relative links reviewed. Documentation is not an executable inference input."
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical."
     },
     {
       "file": "docs/optimization-20261019-evidence.json",
@@ -189,20 +231,41 @@
     {
       "file": "docs/optimization-20261019.md",
       "sha256": "a938750e1026a18a717c446744d6b98a118b6e3549d4f710f8fbd101626c2706",
-      "published_sha256": "a4e2f7aede6a18ad25d2337341a6221b79e2977ecefd85452a62b848e3cc7331",
-      "published_bytes": 13047,
+      "published_sha256": "34d2a668c30f63b46be7600808c7408b0025b86f00438659a296ed2e4b80d0c7",
+      "published_bytes": 12586,
       "identical_to_tested_input": false,
-      "validation_scope": "Sanitized successful model-cold1024 measurement and comparison; native code unchanged."
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical."
+    },
+    {
+      "file": "docs/precision.md",
+      "published_bytes": 4753,
+      "published_sha256": "1b2c5209fd2d76929c763c0469851f6626ad99b25e483a905e3e58e970d6f46a",
+      "identical_to_tested_input": false,
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical."
     },
     {
       "file": "docs/status.md",
       "sha256": "d411b86392506775bdcc7e62c5158fbf4d06f3e08a871aa893a4a53fcc7f2b69",
-      "published_sha256": "d411b86392506775bdcc7e62c5158fbf4d06f3e08a871aa893a4a53fcc7f2b69",
-      "published_bytes": 2818,
+      "published_sha256": "3971c6127ca182e0f20e8b0dfd2c0f86a8487b8ba4426fd3bf4d5eacca17ba37",
+      "published_bytes": 2707,
       "identical_to_tested_input": false,
-      "validation_scope": "Sanitized authored V18 success/coverage documentation; actual saved PS5 results, source/build checks, portable auth examples and relative links reviewed. Documentation is not an executable inference input.",
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical.",
       "bytes": 2818,
       "normalization_or_provider_update": false
+    },
+    {
+      "file": "docs/unet-profiling.md",
+      "published_bytes": 9196,
+      "published_sha256": "89b02dfc606e6290d19383418914b3ac4b5e8eb52442df70f15a8def35cf5863",
+      "identical_to_tested_input": false,
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical."
+    },
+    {
+      "file": "docs/verification.md",
+      "published_bytes": 4274,
+      "published_sha256": "c40a11eb6a3dbb1de9aa26248c399fcd82f09911fc20408e44a3d5703d095381",
+      "identical_to_tested_input": false,
+      "validation_scope": "English documentation and repository policy update; no executable change or new PS5 measurement. Historical input/artifact fields remain historical."
     },
     {
       "file": "native/app/arena.h",
@@ -1189,5 +1252,6 @@
     "compiled_source_changes_after_portable_build": false,
     "operational_evidence": "docs/operations-recovery-20261019-evidence.json",
     "operations_gate": "Operator-assisted disconnect recovery and6 representative continuous1024 jobs locally verified. Not original catalogue recurrence,full Cartesian,24-hour or GPU-fault/power-loss recovery."
-  }
+  },
+  "language_update": "Project-authored documentation is English. This inventory describes the current checkout, not a new measured executable or consumed dependency closure."
 }

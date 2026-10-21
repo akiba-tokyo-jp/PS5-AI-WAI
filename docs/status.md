@@ -1,13 +1,13 @@
-# 最新状況（2026-10-19 日本時間）
+# Latest status (2026-10-19 JST)
 
-V18でIP-Adapterの重み寿命とCPUテキスト／Visionの処理順を修正しました。漫画LoRA1＋IP0.3＋OpenPose1＋マスク付きimg2imgの1024×1024は141.356660秒で完了し、マスク外変更0画素、GPU実行、有限値、OpenAI互換応答とネイティブPNGの一致を確認しました。[修正と実測](ip-lifecycle-20261019.md)・[成功値](ip-lifecycle-20261019-evidence.json)。
+V18 corrected IP-Adapter weight lifetime and the ordering of CPU text/Vision work. Manga LoRA 1 + IP 0.3 + OpenPose 1 + masked img2img at 1024×1024 completed in 141.356660 seconds. Verification found 0 changed pixels outside the mask, GPU execution, finite values, and identical OpenAI-compatible and native PNGs. [Changes and measurements](ip-lifecycle-20261019.md) / [Successful results](ip-lifecycle-20261019-evidence.json).
 
-白黒soft mask、全編集マスク、Canny併用マスクも代表条件の1024を確認しました。参照人物の同一性、指定色、編集画質は未達があり、実行成功と品質合格を分けています。[全機能の確認範囲と制約](feature-classification-20261019.md)。通信切断後の運用者による結果回収と連続6件を確認しました。1024・短文プロンプトの6件は124.176〜124.446秒、中央値124.199秒で、この区間には4〜5倍の低下がありませんでした。元の長文カタログの厳密再現、24時間や任意組合せの保証ではありません。
+Representative 1024 conditions were also verified for grayscale soft masks, full-edit masks, and masked Canny combinations. Reference identity, requested colors, and editing quality have unmet cases; execution success and quality acceptance are evaluated separately. [Feature verification scope and limitations](feature-classification-20261019.md). Operator recovery after a disconnected request and 6 consecutive jobs were verified. The 6 short-prompt 1024 jobs took 124.176–124.446 seconds, median 124.199 seconds, without a 4–5-fold slowdown in that interval. This does not reproduce the original long-prompt catalog exactly or guarantee 24-hour operation or arbitrary combinations.
 
-Direct9422MiB（約9.201GiB）、推論予算8.75GiB、FP32、既存GPUドライバー・設定を維持しました。CPUテキスト重みが0になってからCLIP-Visionを実行し、全機能併用後のCPU借用量0と障害保持なしを確認しました。高水位はCPU借用を含み、専用VRAM使用量ではありません。
+Direct 9422MiB (approximately 9.201 GiB), an 8.75 GiB inference budget, FP32, and existing GPU driver/settings were preserved. CLIP-Vision ran after CPU text weights reached 0; CPU borrowing was 0 after combined-feature generation, with no fault retention. The high-water mark includes CPU borrowing and is not dedicated VRAM usage.
 
-API契約は変更していません。[API仕様](api.md)・[マスク仕様](mask-api.md)・[従来の性能比較](optimization-20261019.md)を参照してください。新しい私有参照画像や生成画像、個人用ログはこの更新に含めず、検証動画も作成していません。公開手順で作ったSELFのホスト検査と、別のネイティブSELFでの実機結果は区別しています。
+The API contract is unchanged. See [API documentation](api.md), [mask specification](mask-api.md), and [previous performance comparison](optimization-20261019.md). New private reference/generated images and personal logs are excluded; no verification video was made. Host inspection of the SELF built by public instructions is distinguished from hardware results obtained with a separate native SELF.
 
-生成中の通信切断も1件検証しました。GPUサンプリング開始後、進捗0.32（20steps中の少なくとも6steps完了に対応）で接続を閉じても、PS5上の生成は142.042663秒で完了しました。生成POSTは1回・自動再送0回で、別途回収したgateway経由とnativeのPNGは一致しました。切断した元の同期応答を受け取ったという意味ではなく、キャンセル・電源断・GPU障害の復旧試験でもありません。
+Verified 1 disconnect during generation. Closed at GPU sampler progress 0.32 (at least 6 completed steps out of 20); PS5 still finished in 142.042663 seconds.1 POST, 0 automatic retries; separately recovered gateway/native PNGs matched. This did not receive the disconnected synchronous response and was not cancellation, power-loss or GPU-fault recovery.
 
-観測されたプロセス生涯Directピークは9,705,046,016バイト、予約内残量は約166.55MiB。CPU借用を含み、専用VRAM使用量ではありません。通常アプリ再起動と合成記録の復旧も確認しましたが、実GPUハングや電源断の復旧は未検証です。[運用・復旧の実機結果](operations-recovery-20261019.txt)・[機械可読値](operations-recovery-20261019-evidence.json)。
+The observed process-lifetime Direct peak was 9,705,046,016 bytes, leaving approximately 166.55 MiB within the reservation. This includes CPU borrowing, not dedicated VRAM usage. Normal app restart and synthetic-record recovery were also verified; recovery from a real GPU hang or power loss remains unverified. [Operations/recovery hardware results](operations-recovery-20261019.txt) / [Machine-readable results](operations-recovery-20261019-evidence.json).
